@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hain Kim? ⚽</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; font-family: sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .card { width: 100%; max-width: 420px; background: #111; border-radius: 20px; padding: 24px 18px; border: 1px solid #222; min-height: 500px; }
+    .col { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+    h1 { font-size: 48px; font-weight: 900; color: #fff; line-height: 1.1; letter-spacing: -2px; }
+    h2 { font-size: 22px; font-weight: 800; color: #fff; }
+    p { color: #999; font-size: 13px; line-height: 1.6; }
+    input { width: 100%; background: #1a1a1a; border: 2px solid #2a2a2a; border-radius: 12px; color: #fff; font-size: 18px; padding: 14px 16px; outline: none; text-align: center; }
+    .btn { background: #4ade80; color: #000; border: none; border-radius: 12px; padding: 14px 32px; font-size: 15px; font-weight: 800; cursor: pointer; width: 100%; }
+    .btn-sec { background: #222; color: #fff; border: 1px solid #333; border-radius: 12px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; }
+    .btn-green { background: transparent; color: #4ade80; border: 2px solid #4ade80; border-radius: 12px; padding: 10px 24px; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .btn-reveal { background: #1a1a1a; color: #fff; border: 2px dashed #444; border-radius: 16px; padding: 20px 40px; font-size: 18px; font-weight: 700; cursor: pointer; width: 100%; }
+    .btn-circle { width: 52px; height: 52px; border-radius: 50%; background: #1e1e1e; border: 2px solid #333; color: #fff; font-size: 24px; cursor: pointer; font-weight: 700; }
+    .btn-vote { background: #1a1a1a; color: #fff; border: 2px solid #2a2a2a; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
+    .btn-vote.selected { background: #0d2b1a; border-color: #4ade80; color: #4ade80; }
+    .btn-disabled { opacity: 0.35; cursor: not-allowed; }
+    .chip { background: #1e1e1e; color: #ccc; border-radius: 20px; padding: 6px 12px; font-size: 12px; border: 1px solid #2a2a2a; display: inline-block; }
+    .chip-green { background: #0d2b1a; color: #4ade80; border-radius: 20px; padding: 6px 12px; font-size: 12px; border: 1px solid #4ade80; display: inline-block; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; }
+    .code-box { background: #0d2b1a; border: 2px solid #4ade80; border-radius: 16px; padding: 20px; width: 100%; }
+    .team-card { background: #0d2b1a; border: 2px solid #4ade80; border-radius: 20px; padding: 28px 24px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .reveal-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 16px 24px; width: 100%; }
+    .rules-box { background: #141414; border: 1px solid #222; border-radius: 16px; padding: 16px; width: 100%; text-align: left; }
+    .teams-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; }
+    .team-btn { position: relative; background: #1a1a1a; color: #aaa; border: 1px solid #252525; border-radius: 7px; padding: 6px 3px; cursor: pointer; font-size: 10px; overflow: hidden; line-height: 1.2; }
+    .team-btn.crossed { background: #2a0d0d; color: #f87171; border-color: #f87171; font-weight: 700; }
+    .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #f87171; opacity: 0.25; font-weight: 900; }
+    .timer { font-size: 32px; font-weight: 900; border: 3px solid; border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
+    .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .error { color: #f87171; font-size: 13px; }
+    .hidden { display: none; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .big-num { font-size: 64px; font-weight: 900; color: #4ade80; line-height: 1; }
+    .counter-row { display: flex; align-items: center; gap: 28px; margin: 8px 0; }
+    .label-sm { color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  </style>
+</head>
+<body>
+<div class="card">
+
+  <!-- HOME -->
+  <div id="screen-home" class="screen active">
+    <div class="col">
+      <div style="font-size:52px">⚽</div>
+      <h1>HAİN<br>KİM?</h1>
+      <p>Futbolun içindeki hain kim?<br>Arkadaşlarınla keşfet!</p>
+      <p id="home-error" class="error hidden"></p>
+      <input id="name-input" placeholder="Adın ne?" maxlength="20" />
+      <button class="btn" onclick="createRoom()">+ ODA KUR</button>
+      <div style="width:100%;display:flex;gap:8px">
+        <input id="room-input" placeholder="Oda kodu (XXXXX)" maxlength="5" style="flex:1;font-size:14px" oninput="this.value=this.value.toUpperCase()" />
+        <button class="btn-green" style="width:auto;padding:0 18px" onclick="joinRoom()">GİR</button>
+      </div>
+      <div class="rules-box">
+        <p style="color:#fff;font-size:13px;font-weight:700;margin-bottom:8px">📋 Nasıl Oynanır?</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Oda kur, arkadaşlarına kodu gönder</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Herkes kendi telefonundan katılır</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Çoğunluk aynı takımı, hain farklı takımı alır</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Konuşun, tartışın, haini bulun!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screen-lobby" class="screen">
+    <div class="col">
+      <h2>🏟️ Bekleme Odası</h2>
+      <div class="code-box">
+        <p style="color:#4ade80;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Oda Kodu</p>
+        <p id="lobby-code" style="color:#fff;font-size:36px;font-weight:900;letter-spacing:6px"></p>
+        <p style="color:#4ade80;font-size:11px;margin-top:6px">Arkadaşlarına bu kodu gönder</p>
+      </div>
+      <div style="width:100%">
+        <p class="label-sm" style="margin-bottom:8px">Katılanlar (<span id="lobby-count">0</span>)</p>
+        <div id="lobby-players" class="chips"></div>
+      </div>
+      <p id="lobby-error" class="error hidden"></p>
+      <button id="start-btn" class="btn btn-disabled" onclick="startGame()">En az 3 kişi lazım (1/3)</button>
+      <p id="lobby-wait" class="hidden" style="color:#555;font-size:13px">Host oyunu başlatmayı bekliyor...</p>
+    </div>
+  </div>
+
+  <!-- CARD REVEAL -->
+  <div id="screen-card_reveal" class="screen">
+    <div class="col">
+      <h2>🃏 Kart Zamanı</h2>
+      <p>Herkes aynı anda kendi kartına baksın!</p>
+
+      <!-- Kart göster butonu -->
+      <div id="reveal-show-section">
+        <button class="btn-reveal" onclick="showMyCard()">KARTIMI GÖR 👀</button>
+      </div>
+
+      <!-- Kart açık -->
+      <div id="reveal-card" class="team-card hidden">
+        <p style="color:#4ade80;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px">Takımın</p>
+        <p id="reveal-team-name" style="color:#fff;font-size:26px;font-weight:900"></p>
+        <p style="font-size:36px;margin:4px 0">⚽</p>
+        <p style="color:#fbbf24;font-size:13px">Kart <span id="reveal-countdown">7</span>s sonra kapanıyor!</p>
+      </div>
+
+      <!-- Kart kapandı -->
+      <div id="reveal-closed" class="hidden col">
+        <p style="font-size:40px">🔒</p>
+        <p>Kartın kapandı! Diğerlerini bekle...</p>
+      </div>
+
+      <!-- Hazır durumu -->
+      <div style="width:100%">
+        <p class="label-sm" style="margin-bottom:8px">Hazır (<span id="reveal-ready-count">0</span>/<span id="reveal-total-count">0</span>)</p>
+        <div id="reveal-ready-list" class="chips"></div>
+      </div>
+
+      <!-- Host tartışmaya geç -->
+      <button id="reveal-discuss-btn" class="btn hidden" onclick="goToDiscussion()">TARTIŞMAYA GEÇ →</button>
+      <p id="reveal-host-wait" class="hidden" style="color:#555;font-size:12px">Host tartışmayı başlatacak...</p>
+    </div>
+  </div>
+
+  <!-- DISCUSSION -->
+  <div id="screen-discussion" class="screen">
+    <div class="col">
+      <div class="row">
+        <div id="disc-timer" class="timer" style="border-color:#4ade80;color:#4ade80">120</div>
+        <div style="text-align:right">
+          <p class="label-sm" style="margin-bottom:5px">Tur <span id="disc-round">1</span> — Oyuncular</p>
+          <div id="disc-players" class="chips" style="justify-content:flex-end"></div>
+        </div>
+      </div>
+      <button id="disc-start-timer-btn" class="btn-green" onclick="startTimer()">⏱ SAYACI BAŞLAT</button>
+      <p id="disc-timer-msg" class="hidden" style="color:#555;font-size:12px">Konuşun, tartışın...</p>
+      <p id="disc-wait-host" class="hidden" style="color:#555;font-size:12px">Host sayacı başlatacak...</p>
+      <div style="width:100%">
+        <p class="label-sm" style="margin-bottom:5px">Takıma bas → işaretle</p>
+        <div id="teams-grid" class="teams-grid"></div>
+      </div>
+      <button id="disc-vote-btn" class="btn btn-disabled" onclick="goToVoting()">🔒 <span id="disc-vote-txt">80s sonra açılır</span></button>
+    </div>
+  </div>
+
+  <!-- VOTING -->
+  <div id="screen-voting" class="screen">
+    <div class="col">
+      <h2>🗳 Oylama</h2>
+      <div id="voting-form" class="col" style="width:100%">
+        <p>Hain kim olduğunu düşünüyorsun?</p>
+        <div id="vote-list" style="display:flex;flex-direction:column;gap:10px;width:100%"></div>
+        <button id="vote-submit-btn" class="btn btn-disabled" onclick="submitVote()">OY VER ✓</button>
+      </div>
+      <div id="voting-done" class="hidden col">
+        <p style="font-size:40px">✅</p>
+        <p>Oyunu kullandın! Diğerleri bekleniyor...</p>
+        <div id="vote-status" class="chips"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="screen-result" class="screen">
+    <div class="col">
+      <div id="result-emoji" style="font-size:60px"></div>
+      <h2 id="result-title"></h2>
+      <p id="result-desc"></p>
+      <p id="result-type" style="font-size:14px"></p>
+      <div style="width:100%">
+        <p class="label-sm" style="margin-bottom:6px">Kalanlar:</p>
+        <div id="result-players" class="chips"></div>
+      </div>
+      <button id="result-cont-btn" class="btn hidden" onclick="continueRound()">DEVAM →</button>
+      <p id="result-wait" class="hidden" style="color:#555;font-size:12px">Host devam ettirecek...</p>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="screen-game_over" class="screen">
+    <div class="col">
+      <div id="over-emoji" style="font-size:70px"></div>
+      <h2 id="over-title"></h2>
+      <div class="reveal-box">
+        <p style="color:#aaa;font-size:12px;margin-bottom:6px">Hain oyuncu:</p>
+        <p id="over-hain-name" style="font-size:22px;font-weight:bold;color:#f87171"></p>
+        <p id="over-hain-team" style="color:#aaa;font-size:12px;margin-top:4px"></p>
+      </div>
+      <div class="reveal-box">
+        <p style="color:#aaa;font-size:12px;margin-bottom:6px">Grubun takımı:</p>
+        <p id="over-grup-team" style="font-size:18px;font-weight:bold;color:#4ade80"></p>
+      </div>
+      <button id="over-restart-btn" class="btn hidden" onclick="resetGame()">🔄 YENİDEN OYNA</button>
+      <p id="over-wait" class="hidden" style="color:#555;font-size:12px">Host yeni oyun başlatacak...</p>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBhyJewchvlo1eeqU6KzrKEA7j0EKVHHHQ",
+  authDomain: "futbol-haini.firebaseapp.com",
+  databaseURL: "https://futbol-haini-default-rtdb.firebaseio.com",
+  projectId: "futbol-haini",
+  storageBucket: "futbol-haini.firebasestorage.app",
+  messagingSenderId: "507160092440",
+  appId: "1:507160092440:web:8e777d90b7fde1076b886d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const TEAMS = [
+  "Manchester City","Real Madrid","Barcelona","Bayern Münih",
+  "Liverpool","PSG","Juventus","Chelsea","Arsenal","Atletico Madrid",
+  "Borussia Dortmund","Inter Milan","AC Milan","Napoli","Porto",
+  "Ajax","PSV","Benfica","Galatasaray","Fenerbahçe","Beşiktaş"
+];
+
+let myId = null, roomCode = null, isHost = false, myName = "";
+let roomData = null, timerInterval = null, voteTarget = null, myVoted = false;
+let crossed = {};
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function genCode() {
+  return Math.random().toString(36).substring(2,7).toUpperCase();
+}
+
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  const el = document.getElementById("screen-"+name);
+  if (el) el.classList.add("active");
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  if (el) { el.textContent = msg; el.classList.remove("hidden"); }
+}
+
+function hide(id) { document.getElementById(id)?.classList.add("hidden"); }
+function show(id) { document.getElementById(id)?.classList.remove("hidden"); }
+
+window.createRoom = async function() {
+  const name = document.getElementById("name-input").value.trim();
+  if (!name) { showError("home-error","İsim gir!"); return; }
+  const code = genCode();
+  const id = push(ref(db,`rooms/${code}/players`)).key;
+  await set(ref(db,`rooms/${code}`), {
+    host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
+    players: { [id]: { name } }
+  });
+  myName=name; roomCode=code; isHost=true; myId=id;
+  listenRoom();
+  showScreen("lobby");
+  document.getElementById("lobby-code").textContent = code;
+}
+
+window.joinRoom = async function() {
+  const name = document.getElementById("name-input").value.trim();
+  const code = document.getElementById("room-input").value.trim().toUpperCase();
+  if (!name) { showError("home-error","İsim gir!"); return; }
+  if (!code) { showError("home-error","Oda kodu gir!"); return; }
+  const snap = await new Promise(res => onValue(ref(db,`rooms/${code}`), res, {onlyOnce:true}));
+  const data = snap.val();
+  if (!data) { showError("home-error","Oda bulunamadı!"); return; }
+  if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
+  const id = push(ref(db,`rooms/${code}/players`)).key;
+  await update(ref(db,`rooms/${code}/players`), { [id]: { name } });
+  myName=name; roomCode=code; isHost=false; myId=id;
+  listenRoom();
+  showScreen("lobby");
+  document.getElementById("lobby-code").textContent = code;
+}
+
+function listenRoom() {
+  onValue(ref(db,`rooms/${roomCode}`), snap => {
+    const data = snap.val();
+    if (!data) return;
+    const prev = roomData;
+    roomData = data;
+    const state = data.gameState;
+    if (!prev || prev.gameState !== state) {
+      showScreen(state);
+      renderScreen(state);
+    } else {
+      renderScreen(state);
+    }
+  });
+}
+
+function renderScreen(state) {
+  if (state === "lobby") renderLobby();
+  else if (state === "card_reveal") renderReveal();
+  else if (state === "discussion") renderDiscussion();
+  else if (state === "voting") renderVoting();
+  else if (state === "result") renderResult();
+  else if (state === "game_over") renderGameOver();
+}
+
+function renderLobby() {
+  const players = getPlayers();
+  document.getElementById("lobby-count").textContent = players.length;
+  document.getElementById("lobby-code").textContent = roomCode;
+  const pc = document.getElementById("lobby-players");
+  pc.innerHTML = players.map(p =>
+    `<span class="${p.id===myId?'chip-green':'chip'}">${p.name}${p.id===roomData.host?' 👑':''}</span>`
+  ).join("");
+  if (isHost) {
+    show("start-btn"); hide("lobby-wait");
+    const btn = document.getElementById("start-btn");
+    if (players.length >= 3) {
+      btn.textContent = "OYUNU BAŞLAT ⚽";
+      btn.classList.remove("btn-disabled");
+    } else {
+      btn.textContent = `En az 3 kişi lazım (${players.length}/3)`;
+      btn.classList.add("btn-disabled");
+    }
+  } else {
+    hide("start-btn"); show("lobby-wait");
+  }
+}
+
+function renderReveal() {
+  const players = getPlayers();
+  const ready = roomData.revealReady || {};
+  const readyCount = Object.keys(ready).length;
+
+  document.getElementById("reveal-ready-count").textContent = readyCount;
+  document.getElementById("reveal-total-count").textContent = players.length;
+  document.getElementById("reveal-ready-list").innerHTML = players.map(p =>
+    `<span class="${ready[p.id]?'chip-green':'chip'}">${p.name} ${ready[p.id]?'✓':'...'}</span>`
+  ).join("");
+
+  if (isHost) {
+    if (readyCount >= players.length) {
+      show("reveal-discuss-btn"); hide("reveal-host-wait");
+    } else {
+      hide("reveal-discuss-btn"); show("reveal-host-wait");
+    }
+  } else {
+    hide("reveal-discuss-btn");
+    if (readyCount < players.length) show("reveal-host-wait");
+    else hide("reveal-host-wait");
+  }
+}
+
+let revealTimer = null;
+
+window.showMyCard = function() {
+  hide("reveal-show-section");
+  show("reveal-card");
+  const team = roomData.assignments?.[myId]?.team || "?";
+  document.getElementById("reveal-team-name").textContent = team;
+
+  let secs = 7;
+  document.getElementById("reveal-countdown").textContent = secs;
+  revealTimer = setInterval(() => {
+    secs--;
+    const el = document.getElementById("reveal-countdown");
+    if (el) el.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(revealTimer);
+      hide("reveal-card");
+      show("reveal-closed");
+      update(ref(db,`rooms/${roomCode}/revealReady`), { [myId]: true });
+    }
+  }, 1000);
+}
+
+window.goToDiscussion = async function() {
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", timer:120, timerActive:false, revealReady:{} });
+}
+
+window.startGame = async function() {
+  const players = getPlayers();
+  if (players.length < 3) return;
+  const teamPool = shuffle(TEAMS);
+  const mainTeam = teamPool[0], hainTeam = teamPool[1];
+  const hainIndex = Math.floor(Math.random()*players.length);
+  const assignments = {};
+  players.forEach((p,i) => { assignments[p.id] = { team: i===hainIndex?hainTeam:mainTeam, isHain: i===hainIndex }; });
+  await update(ref(db,`rooms/${roomCode}`), {
+    gameState:"card_reveal", assignments,
+    eliminated:{}, votes:{}, roundResult:null, winner:null,
+    timer:120, timerActive:false, round:1, revealReady:{}
+  });
+}
+
+function renderDiscussion() {
+  clearInterval(timerInterval);
+  const timer = roomData.timer ?? 120;
+  const timerActive = roomData.timerActive || false;
+  const round = roomData.round || 1;
+
+  document.getElementById("disc-round").textContent = round;
+  updateTimerDisplay(timer);
+
+  const active = getActivePlayers();
+  document.getElementById("disc-players").innerHTML = active.map(p=>
+    `<span class="chip">${p.name}</span>`).join("");
+
+  // Timer buttons
+  if (isHost && !timerActive) {
+    show("disc-start-timer-btn"); hide("disc-timer-msg"); hide("disc-wait-host");
+  } else if (timerActive) {
+    hide("disc-start-timer-btn"); show("disc-timer-msg"); hide("disc-wait-host");
+  } else {
+    hide("disc-start-timer-btn"); hide("disc-timer-msg"); show("disc-wait-host");
+  }
+
+  // Vote button
+  const canVote = !timerActive || timer <= 80;
+  const voteBtn = document.getElementById("disc-vote-btn");
+  const voteTxt = document.getElementById("disc-vote-txt");
+  if (canVote) {
+    voteBtn.classList.remove("btn-disabled");
+    voteBtn.innerHTML = "🗳 OYLAMAYA GEÇ";
+  } else {
+    voteBtn.classList.add("btn-disabled");
+    voteBtn.innerHTML = `🔒 ${timer-80}s sonra açılır`;
+  }
+
+  // Teams grid
+  const grid = document.getElementById("teams-grid");
+  grid.innerHTML = TEAMS.map(t =>
+    `<button class="team-btn${crossed[t]?' crossed':''}" onclick="toggleCross('${t}')">${t}</button>`
+  ).join("");
+
+  // Live timer
+  if (timerActive && timer > 0) {
+    timerInterval = setInterval(() => {
+      const t = (roomData.timer ?? 1) - 1;
+      updateTimerDisplay(t);
+      if (isHost) update(ref(db,`rooms/${roomCode}`), { timer: t });
+      if (t <= 0) { clearInterval(timerInterval); if (isHost) update(ref(db,`rooms/${roomCode}`), { timerActive:false }); }
+    }, 1000);
+  }
+}
+
+function updateTimerDisplay(t) {
+  const el = document.getElementById("disc-timer");
+  el.textContent = t;
+  const color = t>60?"#4ade80":t>20?"#fbbf24":"#f87171";
+  el.style.color = color; el.style.borderColor = color;
+}
+
+window.toggleCross = function(team) {
+  crossed[team] = !crossed[team];
+  const btns = document.querySelectorAll(".team-btn");
+  btns.forEach(b => { if (b.textContent === team) b.classList.toggle("crossed", crossed[team]); });
+}
+
+window.startTimer = async function() {
+  await update(ref(db,`rooms/${roomCode}`), { timerActive:true });
+}
+
+window.goToVoting = async function() {
+  const timer = roomData.timer ?? 120;
+  const timerActive = roomData.timerActive || false;
+  if (timerActive && timer > 80) return;
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"voting", timerActive:false, votes:{} });
+  myVoted = false; voteTarget = null;
+}
+
+function renderVoting() {
+  const active = getActivePlayers();
+  const votes = roomData.votes || {};
+
+  if (myVoted) {
+    hide("voting-form"); show("voting-done");
+    document.getElementById("vote-status").innerHTML = active.map(p=>
+      `<span class="${votes[p.id]?'chip-green':'chip'}">${p.name} ${votes[p.id]?'✓':'...'}</span>`
+    ).join("");
+
+    // Host tally
+    if (isHost && active.every(p => votes[p.id])) {
+      tallyVotes(active, votes);
+    }
+  } else {
+    show("voting-form"); hide("voting-done");
+    const list = document.getElementById("vote-list");
+    list.innerHTML = active.filter(p=>p.id!==myId).map(p=>
+      `<button class="btn-vote${voteTarget===p.id?' selected':''}" onclick="selectVote('${p.id}')">${p.name}</button>`
+    ).join("");
+    const btn = document.getElementById("vote-submit-btn");
+    if (voteTarget) btn.classList.remove("btn-disabled");
+    else btn.classList.add("btn-disabled");
+  }
+}
+
+window.selectVote = function(id) {
+  voteTarget = id;
+  renderVoting();
+}
+
+window.submitVote = async function() {
+  if (!voteTarget) return;
+  await update(ref(db,`rooms/${roomCode}/votes`), { [myId]: voteTarget });
+  myVoted = true;
+  renderVoting();
+}
+
+async function tallyVotes(active, votes) {
+  const tally = {};
+  active.forEach(p => { tally[p.id] = 0; });
+  Object.values(votes).forEach(tid => { if (tally[tid]!==undefined) tally[tid]++; });
+  const maxV = Math.max(...Object.values(tally));
+  const top = Object.keys(tally).filter(id => tally[id]===maxV);
+  const elimId = top[Math.floor(Math.random()*top.length)];
+  const isHainElim = roomData.assignments[elimId]?.isHain;
+  const newElim = { ...(roomData.eliminated||{}), [elimId]:true };
+  const remaining = active.filter(p => !newElim[p.id]);
+  const hainIn = remaining.some(p => roomData.assignments[p.id]?.isHain);
+  let nextState = "result", winner = null;
+  if (!hainIn) { nextState="game_over"; winner="GRUP"; }
+  else if (remaining.length <= 2) { nextState="game_over"; winner="HAİN"; }
+  await update(ref(db,`rooms/${roomCode}`), {
+    eliminated:newElim, roundResult:{eliminatedId:elimId, isHain:isHainElim},
+    gameState:nextState, winner, round:(roomData.round||1)+1, votes:{}
+  });
+}
+
+function renderResult() {
+  const rr = roomData.roundResult;
+  if (!rr) return;
+  const elimName = roomData.players?.[rr.eliminatedId]?.name || "?";
+  document.getElementById("result-emoji").textContent = rr.isHain ? "🎉" : "😱";
+  const title = document.getElementById("result-title");
+  title.textContent = rr.isHain ? "İyi İş!" : "Yanlış Seçim!";
+  title.style.color = rr.isHain ? "#4ade80" : "#f87171";
+  document.getElementById("result-desc").textContent = `${elimName} elendi.`;
+  const rt = document.getElementById("result-type");
+  rt.textContent = rr.isHain ? "✅ Bu kişi HAİNdi!" : "❌ Bu kişi masumdı!";
+  rt.style.color = rr.isHain ? "#4ade80" : "#f87171";
+  document.getElementById("result-players").innerHTML = getActivePlayers().map(p=>
+    `<span class="chip">${p.name}</span>`).join("");
+  if (isHost) { show("result-cont-btn"); hide("result-wait"); }
+  else { hide("result-cont-btn"); show("result-wait"); }
+}
+
+window.continueRound = async function() {
+  myVoted = false; voteTarget = null; crossed = {};
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", roundResult:null, timer:120, timerActive:false, votes:{} });
+}
+
+function renderGameOver() {
+  const winner = roomData.winner;
+  document.getElementById("over-emoji").textContent = winner==="GRUP" ? "🏆" : "🕵️";
+  const title = document.getElementById("over-title");
+  title.textContent = winner==="GRUP" ? "GRUP KAZANDI!" : "HAİN KAZANDI!";
+  title.style.color = winner==="GRUP" ? "#4ade80" : "#f87171";
+  const hainId = Object.keys(roomData.assignments||{}).find(id => roomData.assignments[id].isHain);
+  document.getElementById("over-hain-name").textContent = roomData.players?.[hainId]?.name || "?";
+  document.getElementById("over-hain-team").textContent = "Takımı: " + (roomData.assignments?.[hainId]?.team || "?");
+  const grupTeam = Object.entries(roomData.assignments||{}).find(([,a])=>!a.isHain)?.[1]?.team || "?";
+  document.getElementById("over-grup-team").textContent = grupTeam;
+  if (isHost) { show("over-restart-btn"); hide("over-wait"); }
+  else { hide("over-restart-btn"); show("over-wait"); }
+}
+
+window.resetGame = async function() {
+  myVoted=false; voteTarget=null; crossed={};
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"lobby", assignments:null, eliminated:{}, votes:{}, roundResult:null, winner:null });
+}
+
+function getPlayers() {
+  return Object.entries(roomData?.players||{}).map(([id,p])=>({id,...p}));
+}
+function getActivePlayers() {
+  return getPlayers().filter(p => !roomData?.eliminated?.[p.id]);
+}
+
+</script>
+</body>
+</html>

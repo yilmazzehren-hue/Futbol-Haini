@@ -243,7 +243,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, push, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhyJewchvlo1eeqU6KzrKEA7j0EKVHHHQ",
@@ -352,15 +352,21 @@ window.createRoom = async function() {
   const name = document.getElementById("name-input").value.trim();
   if (!name) { showError("home-error","İsim gir!"); return; }
   const code = genCode();
-  const id = push(ref(db,`rooms/${code}/players`)).key;
-  await set(ref(db,`rooms/${code}`), {
-    host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
-    players: { [id]: { name } }
-  });
-  myName=name; roomCode=code; isHost=true; myId=id;
-  listenRoom();
-  showScreen("lobby");
-  document.getElementById("lobby-code").textContent = code;
+  const newPlayerRef = push(ref(db, `rooms/${code}/players`));
+  const id = newPlayerRef.key;
+  
+  try {
+    await set(ref(db,`rooms/${code}`), {
+      host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
+      players: { [id]: { name, ready: false } }
+    });
+    myName=name; roomCode=code; isHost=true; myId=id;
+    listenRoom();
+    showScreen("lobby");
+    document.getElementById("lobby-code").textContent = code;
+  } catch (err) {
+    showError("home-error", "Oda kurulamadı!");
+  }
 }
 
 window.joinRoom = async function() {
@@ -368,16 +374,24 @@ window.joinRoom = async function() {
   const code = document.getElementById("room-input").value.trim().toUpperCase();
   if (!name) { showError("home-error","İsim gir!"); return; }
   if (!code) { showError("home-error","Oda kodu gir!"); return; }
-  const snap = await new Promise(res => onValue(ref(db,`rooms/${code}`), res, {onlyOnce:true}));
-  const data = snap.val();
-  if (!data) { showError("home-error","Oda bulunamadı!"); return; }
-  if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
-  const id = push(ref(db,`rooms/${code}/players`)).key;
-  await update(ref(db,`rooms/${code}/players`), { [id]: { name } });
-  myName=name; roomCode=code; isHost=false; myId=id;
-  listenRoom();
-  showScreen("lobby");
-  document.getElementById("lobby-code").textContent = code;
+  
+  try {
+    const snap = await get(ref(db, `rooms/${code}`));
+    const data = snap.val();
+    if (!data) { showError("home-error","Oda bulunamadı!"); return; }
+    if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
+    
+    const newPlayerRef = push(ref(db, `rooms/${code}/players`));
+    const id = newPlayerRef.key;
+    await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+    
+    myName=name; roomCode=code; isHost=false; myId=id;
+    listenRoom();
+    showScreen("lobby");
+    document.getElementById("lobby-code").textContent = code;
+  } catch (err) {
+    showError("home-error", "Odaya katılamadı!");
+  }
 }
 
 function listenRoom() {

@@ -104,8 +104,7 @@
       </div>
       <p id="lobby-error" class="error hidden"></p>
       <button id="ready-btn" class="btn-green" onclick="toggleReady()" style="width:100%">✋ Hazırım</button>
-      <button id="start-btn" class="btn btn-disabled" onclick="startGame()">En az 3 kişi lazım (1/3)</button>
-      <p id="lobby-wait" class="hidden" style="color:#555;font-size:13px">Host oyunu başlatmayı bekliyor...</p>
+      <p id="lobby-wait" class="hidden" style="color:#555;font-size:13px">Herkes hazır olunca oyun otomatik başlayacak...</p>
       <button id="destroy-btn" class="hidden" onclick="destroyRoom()" style="background:transparent;color:#f87171;border:2px solid #f87171;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%">🚪 Odayı Dağıt</button>
       <button id="leave-btn" class="hidden" onclick="leaveRoom()" style="background:transparent;color:#555;border:1px solid #333;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%">← Odadan Çık</button>
     </div>
@@ -288,6 +287,7 @@ window.toggleReady = async function() {
 }
 
 window.kickPlayer = async function(id) {
+  if (!roomCode || !id) return;
   await set(ref(db, `rooms/${roomCode}/players/${id}`), null);
 }
 
@@ -378,7 +378,6 @@ function listenRoom() {
       showScreen("home");
       return;
     }
-    // Atıldıysam (players içinde ID'm yoksa)
     if (roomCode && myId && data.players && !data.players[myId]) {
       roomCode = null; myId = null; isHost = false; roomData = null;
       showScreen("home");
@@ -444,53 +443,46 @@ function renderLobby() {
   }
 
   if (isHost) {
-    show("start-btn"); hide("lobby-wait");
     show("destroy-btn"); hide("leave-btn");
-    const btn = document.getElementById("start-btn");
     if (allReady) {
-      btn.textContent = "OYUNU BAŞLAT ⚽";
-      btn.classList.remove("btn-disabled");
       startGame();
-    } else if (players.length < 3) {
-      btn.textContent = `En az 3 kişi lazım (${players.length}/3)`;
-      btn.classList.add("btn-disabled");
-    } else {
-      btn.textContent = `Hazır: ${readyPlayers.length}/${players.length}`;
-      btn.classList.add("btn-disabled");
     }
   } else {
-    hide("start-btn"); show("lobby-wait");
     hide("destroy-btn"); show("leave-btn");
     const wait = document.getElementById("lobby-wait");
     wait.textContent = allReady ? "Başlıyor..." : `Hazır: ${readyPlayers.length}/${players.length}`;
   }
 }
 
-let revealTimerInterval = null;
+let cardRevealInterval = null;
 
 function renderReveal() {
-  clearInterval(revealTimerInterval);
-  hide("reveal-card");
-  show("reveal-show-section");
-
   const revT = roomData.revealTimer ?? 10;
   const timerEl = document.getElementById("reveal-timer");
-  timerEl.textContent = revT;
-  const c = revT > 5 ? "#4ade80" : "#f87171";
-  timerEl.style.color = c; timerEl.style.borderColor = c;
+  if (timerEl) {
+    timerEl.textContent = revT;
+    const c = revT > 5 ? "#4ade80" : "#f87171";
+    timerEl.style.color = c; timerEl.style.borderColor = c;
+  }
 
-  if (isHost && revT > 0) {
-    revealTimerInterval = setInterval(() => {
-      const newT = (roomData.revealTimer ?? 10) - 1;
-      if (newT >= 0) {
-        update(ref(db, `rooms/${roomCode}`), { revealTimer: newT });
-      } else {
-        clearInterval(revealTimerInterval);
-        if (isHost) {
-          goToDiscussion();
+  if (isHost) {
+    if (!cardRevealInterval) {
+      cardRevealInterval = setInterval(async () => {
+        if (!roomData || roomData.gameState !== "card_reveal") {
+          clearInterval(cardRevealInterval);
+          cardRevealInterval = null;
+          return;
         }
-      }
-    }, 1000);
+        const currentT = roomData.revealTimer ?? 10;
+        if (currentT > 0) {
+          await update(ref(db, `rooms/${roomCode}`), { revealTimer: currentT - 1 });
+        } else {
+          clearInterval(cardRevealInterval);
+          cardRevealInterval = null;
+          await goToDiscussion();
+        }
+      }, 1000);
+    }
   }
 }
 
@@ -502,6 +494,10 @@ window.showMyCard = function() {
 }
 
 window.goToDiscussion = async function() {
+  if (cardRevealInterval) {
+    clearInterval(cardRevealInterval);
+    cardRevealInterval = null;
+  }
   await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", timer:180, timerActive:true });
 }
 

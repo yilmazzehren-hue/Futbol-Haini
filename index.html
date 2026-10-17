@@ -35,29 +35,18 @@
     .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #f87171; opacity: 0.25; font-weight: 900; }
     .timer { font-size: 32px; font-weight: 900; border: 3px solid; border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
-    .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
     .error { color: #f87171; font-size: 13px; }
     .hidden { display: none; }
     .screen { display: none; }
     .screen.active { display: block; }
-    .big-num { font-size: 64px; font-weight: 900; color: #4ade80; line-height: 1; }
-    .counter-row { display: flex; align-items: center; gap: 28px; margin: 8px 0; }
     .label-sm { color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 
-    /* Animasyonlar */
     @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes popIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
     @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
-    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
-    @keyframes confetti { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(80px) rotate(360deg);opacity:0} }
-    .anim-fade { animation: fadeIn 0.4s ease forwards; }
     .anim-pop { animation: popIn 0.35s cubic-bezier(.17,.67,.45,1.4) forwards; }
     .anim-shake { animation: shake 0.5s ease; }
-    .anim-pulse { animation: pulse 0.6s ease infinite; }
     .screen.active { animation: fadeIn 0.3s ease forwards; }
-    .confetti-wrap { position:relative; overflow:hidden; }
-    .confetti-piece { position:absolute; width:8px; height:8px; border-radius:2px; animation: confetti 1s ease forwards; }
   </style>
 </head>
 <body>
@@ -116,33 +105,23 @@
     <div class="col">
       <h2>🃏 Kart Zamanı</h2>
       <p>Herkes aynı anda kendi kartına baksın!</p>
-
-      <!-- Kart göster butonu -->
       <div id="reveal-show-section">
         <button class="btn-reveal" onclick="showMyCard()">KARTIMI GÖR 👀</button>
       </div>
-
-      <!-- Kart açık -->
       <div id="reveal-card" class="team-card hidden">
         <p style="color:#4ade80;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px">Takımın</p>
         <p id="reveal-team-name" style="color:#fff;font-size:26px;font-weight:900"></p>
         <p style="font-size:36px;margin:4px 0">⚽</p>
         <p style="color:#fbbf24;font-size:13px">Kart <span id="reveal-countdown">7</span>s sonra kapanıyor!</p>
       </div>
-
-      <!-- Kart kapandı -->
       <div id="reveal-closed" class="hidden col">
         <p style="font-size:40px">🔒</p>
         <p>Kartın kapandı! Diğerlerini bekle...</p>
       </div>
-
-      <!-- Hazır durumu -->
       <div style="width:100%">
         <p class="label-sm" style="margin-bottom:8px">Hazır (<span id="reveal-ready-count">0</span>/<span id="reveal-total-count">0</span>)</p>
         <div id="reveal-ready-list" class="chips"></div>
       </div>
-
-      <!-- Host tartışmaya geç -->
       <button id="reveal-discuss-btn" class="btn hidden" onclick="goToDiscussion()">TARTIŞMAYA GEÇ →</button>
       <p id="reveal-host-wait" class="hidden" style="color:#555;font-size:12px">Host tartışmayı başlatacak...</p>
     </div>
@@ -243,7 +222,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, push } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, push, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhyJewchvlo1eeqU6KzrKEA7j0EKVHHHQ",
@@ -271,6 +250,7 @@ const TEAMS = [
 let myId = null, roomCode = null, isHost = false, myName = "";
 let roomData = null, timerInterval = null, voteTarget = null, myVoted = false;
 let crossed = {};
+let roomListenerUnsubscribe = null;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -289,45 +269,10 @@ function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   const el = document.getElementById("screen-"+name);
   if (el) el.classList.add("active");
-  // Geri butonunu sadece home ve lobby dışında göster
   if (name === "home" || name === "lobby") {
     document.getElementById("back-btn").classList.add("hidden");
   } else {
     document.getElementById("back-btn").classList.remove("hidden");
-  }
-}
-
-window.toggleReady = async function() {
-  const isReady = roomData?.players?.[myId]?.ready;
-  await update(ref(db,`rooms/${roomCode}/players/${myId}`), { ready: !isReady });
-}
-
-window.kickPlayer = async function(id) {
-  await update(ref(db,`rooms/${roomCode}/players/${id}`), { kicked: true });
-}
-
-window.destroyRoom = async function() {
-  await set(ref(db,`rooms/${roomCode}`), null);
-  roomCode = null; myId = null; isHost = false; roomData = null;
-  showScreen("home");
-}
-
-window.leaveRoom = function() {
-  roomCode = null; myId = null; isHost = false; roomData = null;
-  showScreen("home");
-}
-
-window.goBack = function() {
-  const state = roomData?.gameState;
-  if (state === "lobby") {
-    roomCode = null; myId = null; isHost = false; roomData = null;
-    showScreen("home");
-  } else if (state === "discussion" || state === "card_reveal") {
-    showScreen("lobby");
-  } else if (state === "voting") {
-    showScreen("discussion");
-  } else {
-    showScreen("home");
   }
 }
 
@@ -340,65 +285,128 @@ function hide(id) { document.getElementById(id)?.classList.add("hidden"); }
 function show(id) { document.getElementById(id)?.classList.remove("hidden"); }
 
 window.toggleReady = async function() {
+  if (!roomCode || !myId) return;
   const isReady = roomData?.players?.[myId]?.ready;
-  await update(ref(db,`rooms/${roomCode}/players/${myId}`), { ready: !isReady });
+  await update(ref(db, `rooms/${roomCode}/players/${myId}`), { ready: !isReady });
 }
 
 window.kickPlayer = async function(id) {
-  await update(ref(db,`rooms/${roomCode}/players/${id}`), { kicked: true });
+  if (!roomCode || !isHost) return;
+  await update(ref(db, `rooms/${roomCode}/players/${id}`), { kicked: true });
+}
+
+window.destroyRoom = async function() {
+  if (!roomCode) return;
+  await set(ref(db, `rooms/${roomCode}`), null);
+  cleanupRoom();
+}
+
+window.leaveRoom = function() {
+  cleanupRoom();
+}
+
+function cleanupRoom() {
+  if (roomListenerUnsubscribe) {
+    roomListenerUnsubscribe();
+    roomListenerUnsubscribe = null;
+  }
+  roomCode = null; myId = null; isHost = false; roomData = null;
+  showScreen("home");
+}
+
+window.goBack = function() {
+  const state = roomData?.gameState;
+  if (state === "lobby") {
+    cleanupRoom();
+  } else if (state === "discussion" || state === "card_reveal") {
+    showScreen("lobby");
+  } else if (state === "voting") {
+    showScreen("discussion");
+  } else {
+    showScreen("home");
+  }
 }
 
 window.createRoom = async function() {
   const name = document.getElementById("name-input").value.trim();
-  if (!name) { showError("home-error","İsim gir!"); return; }
+  if (!name) { showError("home-error","Lütfen adını gir!"); return; }
+  
   const code = genCode();
-  const id = push(ref(db,`rooms/${code}/players`)).key;
-  await set(ref(db,`rooms/${code}`), {
-    host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
-    players: { [id]: { name } }
-  });
-  myName=name; roomCode=code; isHost=true; myId=id;
-  listenRoom();
-  showScreen("lobby");
-  document.getElementById("lobby-code").textContent = code;
+  const newPlayerRef = push(ref(db, `rooms/${code}/players`));
+  const id = newPlayerRef.key;
+
+  try {
+    await set(ref(db, `rooms/${code}`), {
+      host: id, 
+      gameState: "lobby", 
+      timer: 120, 
+      timerActive: false, 
+      round: 1,
+      players: { [id]: { name, ready: false } }
+    });
+    myName = name; roomCode = code; isHost = true; myId = id;
+    listenRoom();
+    showScreen("lobby");
+  } catch (err) {
+    showError("home-error", "Oda kurulamadı, tekrar dene.");
+  }
 }
 
 window.joinRoom = async function() {
   const name = document.getElementById("name-input").value.trim();
   const code = document.getElementById("room-input").value.trim().toUpperCase();
-  if (!name) { showError("home-error","İsim gir!"); return; }
-  if (!code) { showError("home-error","Oda kodu gir!"); return; }
-  const snap = await new Promise(res => onValue(ref(db,`rooms/${code}`), res, {onlyOnce:true}));
-  const data = snap.val();
-  if (!data) { showError("home-error","Oda bulunamadı!"); return; }
-  if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
-  const id = push(ref(db,`rooms/${code}/players`)).key;
-  await update(ref(db,`rooms/${code}/players`), { [id]: { name } });
-  myName=name; roomCode=code; isHost=false; myId=id;
-  listenRoom();
-  showScreen("lobby");
-  document.getElementById("lobby-code").textContent = code;
+  
+  if (!name) { showError("home-error","Lütfen adını gir!"); return; }
+  if (!code || code.length < 5) { showError("home-error","Geçerli bir 5 haneli oda kodu gir!"); return; }
+
+  try {
+    const roomRef = ref(db, `rooms/${code}`);
+    const snap = await get(roomRef);
+    
+    if (!snap.exists()) { 
+      showError("home-error", "Oda bulunamadı!"); 
+      return; 
+    }
+    
+    const data = snap.val();
+    if (data.gameState !== "lobby") { 
+      showError("home-error", "Bu oyun çoktan başlamış!"); 
+      return; 
+    }
+
+    const newPlayerRef = push(ref(db, `rooms/${code}/players`));
+    const id = newPlayerRef.key;
+
+    await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+    
+    myName = name; roomCode = code; isHost = false; myId = id;
+    listenRoom();
+    showScreen("lobby");
+  } catch (err) {
+    showError("home-error", "Odaya katılırken bir hata oluştu.");
+  }
 }
 
 function listenRoom() {
-  onValue(ref(db,`rooms/${roomCode}`), snap => {
+  if (roomListenerUnsubscribe) roomListenerUnsubscribe();
+  
+  const roomRef = ref(db, `rooms/${roomCode}`);
+  roomListenerUnsubscribe = onValue(roomRef, snap => {
     const data = snap.val();
     if (!data) {
-      // Oda silindi, ana sayfaya dön
-      roomCode = null; myId = null; isHost = false; roomData = null;
-      showScreen("home");
+      cleanupRoom();
       return;
     }
+    
     const prev = roomData;
     roomData = data;
 
-    // Atıldım mı?
     if (data.players?.[myId]?.kicked) {
-      roomCode = null; myId = null; isHost = false; roomData = null;
-      showScreen("home");
+      cleanupRoom();
       alert("Odadan atıldın!");
       return;
     }
+    
     const state = data.gameState;
     if (!prev || prev.gameState !== state) {
       showScreen(state);
@@ -442,17 +450,12 @@ function renderLobby() {
     ).join("");
   }
 
-  // Hazır butonu
   const myReady = roomData?.players?.[myId]?.ready;
   const readyBtn = document.getElementById("ready-btn");
   if (myReady) {
-    readyBtn.textContent = "✅ Hazırım (iptal et)";
-    readyBtn.style.borderColor = "#4ade80";
-    readyBtn.style.color = "#4ade80";
+    readyBtn.textContent = "✅ Hazırım (İptal Et)";
   } else {
     readyBtn.textContent = "✋ Hazırım";
-    readyBtn.style.borderColor = "#4ade80";
-    readyBtn.style.color = "#4ade80";
   }
 
   if (isHost) {
@@ -462,8 +465,6 @@ function renderLobby() {
     if (allReady) {
       btn.textContent = "OYUNU BAŞLAT ⚽";
       btn.classList.remove("btn-disabled");
-      // Herkes hazırsa otomatik başlat
-      startGame();
     } else if (players.length < 3) {
       btn.textContent = `En az 3 kişi lazım (${players.length}/3)`;
       btn.classList.add("btn-disabled");
@@ -475,7 +476,7 @@ function renderLobby() {
     hide("start-btn"); show("lobby-wait");
     hide("destroy-btn"); show("leave-btn");
     const wait = document.getElementById("lobby-wait");
-    wait.textContent = allReady ? "Başlıyor..." : `Hazır: ${readyPlayers.length}/${players.length}`;
+    wait.textContent = allReady ? "Hostun oyunu başlatması bekleniyor..." : `Hazır: ${readyPlayers.length}/${players.length}`;
   }
 }
 
@@ -521,16 +522,18 @@ window.showMyCard = function() {
       clearInterval(revealTimer);
       hide("reveal-card");
       show("reveal-closed");
-      update(ref(db,`rooms/${roomCode}/revealReady`), { [myId]: true });
+      update(ref(db, `rooms/${roomCode}/revealReady`), { [myId]: true });
     }
   }, 1000);
 }
 
 window.goToDiscussion = async function() {
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", timer:180, timerActive:true, revealReady:{} });
+  if (!isHost) return;
+  await update(ref(db, `rooms/${roomCode}`), { gameState:"discussion", timer:180, timerActive:true, revealReady:{} });
 }
 
 window.startGame = async function() {
+  if (!isHost) return;
   const players = getPlayers();
   if (players.length < 3) return;
   const teamPool = shuffle(TEAMS);
@@ -538,7 +541,7 @@ window.startGame = async function() {
   const hainIndex = Math.floor(Math.random()*players.length);
   const assignments = {};
   players.forEach((p,i) => { assignments[p.id] = { team: i===hainIndex?hainTeam:mainTeam, isHain: i===hainIndex }; });
-  await update(ref(db,`rooms/${roomCode}`), {
+  await update(ref(db, `rooms/${roomCode}`), {
     gameState:"card_reveal", assignments,
     eliminated:{}, votes:{}, roundResult:null, winner:null,
     timer:180, timerActive:false, round:1, revealReady:{}
@@ -559,7 +562,6 @@ function renderDiscussion() {
   document.getElementById("disc-players").innerHTML = active.map(p=>
     `<span class="chip">${p.name}</span>`).join("");
 
-  // Timer buttons
   if (isHost && !timerActive) {
     show("disc-start-timer-btn"); hide("disc-timer-msg"); hide("disc-wait-host");
   } else if (timerActive) {
@@ -568,10 +570,8 @@ function renderDiscussion() {
     hide("disc-start-timer-btn"); hide("disc-timer-msg"); show("disc-wait-host");
   }
 
-  // Vote button
   const canVote = !timerActive || timer <= 100;
   const voteBtn = document.getElementById("disc-vote-btn");
-  const voteTxt = document.getElementById("disc-vote-txt");
   if (canVote) {
     voteBtn.classList.remove("btn-disabled");
     voteBtn.innerHTML = "🗳 OYLAMAYA GEÇ";
@@ -580,19 +580,17 @@ function renderDiscussion() {
     voteBtn.innerHTML = `🔒 ${timer-100}s sonra açılır`;
   }
 
-  // Teams grid
   const grid = document.getElementById("teams-grid");
   grid.innerHTML = TEAMS.map(t =>
     `<button class="team-btn${crossed[t]?' crossed':''}" onclick="toggleCross('${t}')">${t}</button>`
   ).join("");
 
-  // Live timer
   if (timerActive && timer > 0) {
     timerInterval = setInterval(() => {
       const t = (roomData.timer ?? 1) - 1;
       updateTimerDisplay(t);
-      if (isHost) update(ref(db,`rooms/${roomCode}`), { timer: t });
-      if (t <= 0) { clearInterval(timerInterval); if (isHost) update(ref(db,`rooms/${roomCode}`), { timerActive:false }); }
+      if (isHost) update(ref(db, `rooms/${roomCode}`), { timer: t });
+      if (t <= 0) { clearInterval(timerInterval); if (isHost) update(ref(db, `rooms/${roomCode}`), { timerActive:false }); }
     }, 1000);
   }
 }
@@ -611,7 +609,8 @@ window.toggleCross = function(team) {
 }
 
 window.startTimer = async function() {
-  await update(ref(db,`rooms/${roomCode}`), { timerActive:true });
+  if (!isHost) return;
+  await update(ref(db, `rooms/${roomCode}`), { timerActive:true });
 }
 
 let voteTimerInterval = null;
@@ -620,7 +619,7 @@ window.goToVoting = async function() {
   const timer = roomData.timer ?? 180;
   const timerActive = roomData.timerActive || false;
   if (timerActive && timer > 100) return;
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"voting", timerActive:false, votes:{}, voteTimer:15 });
+  await update(ref(db, `rooms/${roomCode}`), { gameState:"voting", timerActive:false, votes:{}, voteTimer:15 });
   myVoted = false; voteTarget = null;
 }
 
@@ -641,7 +640,6 @@ function renderVoting() {
   } else {
     show("voting-form"); hide("voting-done");
 
-    // Sayaç göster
     const vtEl = document.getElementById("vote-timer");
     if (vtEl) {
       vtEl.textContent = vt;
@@ -657,7 +655,6 @@ function renderVoting() {
     if (voteTarget) btn.classList.remove("btn-disabled");
     else btn.classList.add("btn-disabled");
 
-    // Sayaç çalıştır
     if (vt > 0) {
       voteTimerInterval = setInterval(() => {
         const newT = (roomData.voteTimer ?? 1) - 1;
@@ -667,12 +664,12 @@ function renderVoting() {
           const c = newT > 8 ? "#4ade80" : newT > 4 ? "#fbbf24" : "#f87171";
           el.style.color = c; el.style.borderColor = c;
         }
-        if (isHost) update(ref(db,`rooms/${roomCode}`), { voteTimer: newT });
+        if (isHost) update(ref(db, `rooms/${roomCode}`), { voteTimer: newT });
         if (newT <= 0) {
           clearInterval(voteTimerInterval);
           if (!myVoted) {
             myVoted = true;
-            update(ref(db,`rooms/${roomCode}/votes`), { [myId]: "none" });
+            update(ref(db, `rooms/${roomCode}/votes`), { [myId]: "none" });
             renderVoting();
           }
         }
@@ -688,7 +685,7 @@ window.selectVote = function(id) {
 
 window.submitVote = async function() {
   if (!voteTarget) return;
-  await update(ref(db,`rooms/${roomCode}/votes`), { [myId]: voteTarget });
+  await update(ref(db, `rooms/${roomCode}/votes`), { [myId]: voteTarget });
   myVoted = true;
   renderVoting();
 }
@@ -707,7 +704,7 @@ async function tallyVotes(active, votes) {
   let nextState = "result", winner = null;
   if (!hainIn) { nextState="game_over"; winner="GRUP"; }
   else if (remaining.length <= 2) { nextState="game_over"; winner="HAİN"; }
-  await update(ref(db,`rooms/${roomCode}`), {
+  await update(ref(db, `rooms/${roomCode}`), {
     eliminated:newElim, roundResult:{eliminatedId:elimId, isHain:isHainElim},
     gameState:nextState, winner, round:(roomData.round||1)+1, votes:{}, lastVotes:votes
   });
@@ -718,7 +715,6 @@ function renderResult() {
   if (!rr) return;
   const elimName = roomData.players?.[rr.eliminatedId]?.name || "?";
 
-  // Animasyon
   const emoji = document.getElementById("result-emoji");
   emoji.textContent = rr.isHain ? "🎉" : "😱";
   emoji.className = rr.isHain ? "anim-pop" : "anim-shake";
@@ -728,10 +724,9 @@ function renderResult() {
   title.style.color = rr.isHain ? "#4ade80" : "#f87171";
   document.getElementById("result-desc").textContent = `${elimName} elendi.`;
   const rt = document.getElementById("result-type");
-  rt.textContent = rr.isHain ? "✅ Bu kişi HAİNdi!" : "❌ Bu kişi masumdı!";
+  rt.textContent = rr.isHain ? "✅ Bu kişi HAİNdi!" : "❌ Bu kişi masumdu!";
   rt.style.color = rr.isHain ? "#4ade80" : "#f87171";
 
-  // Oy özeti - kimin kime oy verdiği
   const votes = roomData.lastVotes || roomData.votes || {};
   const players = getPlayers();
   const voteList = document.getElementById("result-vote-list");
@@ -748,8 +743,9 @@ function renderResult() {
 }
 
 window.continueRound = async function() {
+  if (!isHost) return;
   myVoted = false; voteTarget = null; crossed = {};
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", roundResult:null, timer:180, timerActive:true, votes:{} });
+  await update(ref(db, `rooms/${roomCode}`), { gameState:"discussion", roundResult:null, timer:180, timerActive:true, votes:{} });
 }
 
 function renderGameOver() {
@@ -768,7 +764,6 @@ function renderGameOver() {
   const grupTeam = Object.entries(roomData.assignments||{}).find(([,a])=>!a.isHain)?.[1]?.team || "?";
   document.getElementById("over-grup-team").textContent = grupTeam;
 
-  // İstatistikler
   const players = getPlayers();
   const lastVotes = roomData.lastVotes || {};
   const voteCount = {};
@@ -796,7 +791,6 @@ function renderGameOver() {
     `<span class="${restartReady[p.id]?'chip-green':'chip'}">${p.name} ${restartReady[p.id]?'✓':'...'}</span>`
   ).join("");
 
-  // Kendi bastıysa butonu kapat
   if (restartReady[myId]) {
     const btn = document.getElementById("over-restart-btn");
     btn.textContent = "✓ Lobidesin";
@@ -804,7 +798,6 @@ function renderGameOver() {
     btn.onclick = null;
   }
 
-  // 15sn sayacı - host yönetir
   clearInterval(overTimerInterval);
   const overT = roomData.overTimer ?? 15;
   const timerWrap = document.getElementById("over-timer-wrap");
@@ -815,18 +808,16 @@ function renderGameOver() {
       const newT = (roomData.overTimer ?? 1) - 1;
       const tw = document.getElementById("over-timer-wrap");
       if (tw) tw.textContent = newT > 0 ? `⏱ ${newT}s sonra otomatik lobiye atılırsın` : "";
-      if (isHost) update(ref(db,`rooms/${roomCode}`), { overTimer: newT });
+      if (isHost) update(ref(db, `rooms/${roomCode}`), { overTimer: newT });
       if (newT <= 0) {
         clearInterval(overTimerInterval);
-        // Herkesi lobiye at
         if (isHost) resetGame();
       }
     }, 1000);
   }
 
-  // Host başlangıçta overTimer'ı başlat
   if (isHost && roomData.overTimer === undefined) {
-    update(ref(db,`rooms/${roomCode}`), { overTimer: 15 });
+    update(ref(db, `rooms/${roomCode}`), { overTimer: 15 });
   }
 }
 
@@ -837,18 +828,18 @@ window.readyToRestart = async function() {
   btn.textContent = "✓ Gidiliyor...";
   btn.classList.add("btn-disabled");
   btn.onclick = null;
-  await update(ref(db,`rooms/${roomCode}/restartReady`), { [myId]: true });
-  // Bu oyuncu lobiye geç
-  myVoted=false; voteTarget=null; crossed={};
+  await update(ref(db, `rooms/${roomCode}/restartReady`), { [myId]: true });
+  myVoted = false; voteTarget = null; crossed = {};
   showScreen("lobby");
 }
 
 window.resetGame = async function() {
-  myVoted=false; voteTarget=null; crossed={};
+  if (!isHost) return;
+  myVoted = false; voteTarget = null; crossed = {};
   const players = getPlayers();
   const resetPlayers = {};
   players.forEach(p => { resetPlayers[p.id] = { name: p.name, ready: false }; });
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"lobby", assignments:null, eliminated:{}, votes:{}, roundResult:null, winner:null, lastVotes:null, restartReady:{}, overTimer:null, players: resetPlayers });
+  await update(ref(db, `rooms/${roomCode}`), { gameState:"lobby", assignments:null, eliminated:{}, votes:{}, roundResult:null, winner:null, lastVotes:null, restartReady:{}, overTimer:null, players: resetPlayers });
 }
 
 function getPlayers() {
@@ -857,7 +848,6 @@ function getPlayers() {
 function getActivePlayers() {
   return getPlayers().filter(p => !roomData?.eliminated?.[p.id]);
 }
-
 </script>
 </body>
 </html>

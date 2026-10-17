@@ -334,8 +334,7 @@ window.createRoom = async function() {
   try {
     await set(ref(db,`rooms/${code}`), {
       host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
-      players: { [id]: { name, ready: false } },
-      impostorCounts: {}
+      players: { [id]: { name, ready: false } }
     });
     myName=name; roomCode=code; isHost=true; myId=id;
     listenRoom();
@@ -506,43 +505,20 @@ window.startGame = async function() {
   const players = getPlayers();
   if (players.length < 3) return;
 
-  const impostorCounts = roomData.impostorCounts || {};
-  
-  // Ağırlıklı rastgele seçim (Daha önce hain olanların şansı azalır)
-  const weights = players.map(p => {
-    const count = impostorCounts[p.id] || 0;
-    return { id: p.id, weight: Math.max(0.1, 1 / (1 + count * 2)) };
-  });
-
-  const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);
-  let randomVal = Math.random() * totalWeight;
-  let chosenId = players[0].id;
-
-  for (const w of weights) {
-    if (randomVal < w.weight) {
-      chosenId = w.id;
-      break;
-    }
-    randomVal -= w.weight;
-  }
-
-  const newImpostorCounts = { ...impostorCounts };
-  newImpostorCounts[chosenId] = (newImpostorCounts[chosenId] || 0) + 1;
-
   const teamPool = shuffle(TEAMS);
   const mainTeam = teamPool[0], hainTeam = teamPool[1];
+  const hainIndex = Math.floor(Math.random() * players.length);
   const assignments = {};
   
-  players.forEach((p) => {
-    const isHain = (p.id === chosenId);
+  players.forEach((p, i) => {
+    const isHain = (i === hainIndex);
     assignments[p.id] = { team: isHain ? hainTeam : mainTeam, isHain: isHain };
   });
 
   await update(ref(db,`rooms/${roomCode}`), {
     gameState:"card_reveal", assignments,
-    impostorCounts: newImpostorCounts,
     eliminated:{}, votes:{}, roundResult:null, winner:null,
-    timer:180, timerActive:false, round:1, revealTimer:10
+    timer:180, timerActive:false, round:1, revealTimer:10, restartReady:null, overTimer:null
   });
 }
 
@@ -787,11 +763,23 @@ function renderGameOver() {
     `<span class="${restartReady[p.id]?'chip-green':'chip'}">${p.name} ${restartReady[p.id]?'✓':'...'}</span>`
   ).join("");
 
+  const restartBtn = document.getElementById("over-restart-btn");
   if (restartReady[myId]) {
-    const btn = document.getElementById("over-restart-btn");
-    btn.textContent = "✓ Gidiliyor...";
-    btn.classList.add("btn-disabled");
-    btn.onclick = null;
+    restartBtn.textContent = "✓ Hazırsın";
+    restartBtn.classList.add("btn-disabled");
+    restartBtn.onclick = null;
+  } else {
+    restartBtn.textContent = "🔄 TEKRAR OYNA";
+    restartBtn.classList.remove("btn-disabled");
+    restartBtn.onclick = readyToRestart;
+  }
+
+  // Herkes hazır olduğunda otomatik lobiye dön ve sıfırla
+  if (readyCount >= players.length) {
+    if (isHost) {
+      resetGame();
+    }
+    return;
   }
 
   clearInterval(overTimerInterval);
@@ -821,7 +809,7 @@ let overTimerInterval = null;
 
 window.readyToRestart = async function() {
   const btn = document.getElementById("over-restart-btn");
-  btn.textContent = "✓ Gidiliyor...";
+  btn.textContent = "✓ Hazırsın";
   btn.classList.add("btn-disabled");
   btn.onclick = null;
   await update(ref(db,`rooms/${roomCode}/restartReady`), { [myId]: true });
@@ -833,7 +821,7 @@ window.resetGame = async function() {
   const players = getPlayers();
   const resetPlayers = {};
   players.forEach(p => { resetPlayers[p.id] = { name: p.name, ready: false }; });
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"lobby", assignments:null, eliminated:{}, votes:{}, roundResult:null, winner:null, lastVotes:null, restartReady:{}, overTimer:null, players: resetPlayers });
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"lobby", assignments:null, eliminated:{}, votes:{}, roundResult:null, winner:null, lastVotes:null, restartReady:null, overTimer:null, players: resetPlayers });
 }
 
 function getPlayers() {

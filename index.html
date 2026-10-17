@@ -4,7 +4,7 @@
   <meta name="google-site-verification" content="uuwlQ3x9kkrRogBBBQJ-XL6_jvCakC71jP2hnunuMR8" />
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hain Kim? ⚽</title>
+  <title>Hain Kim?</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0a0a0a; font-family: sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -18,7 +18,6 @@
     .btn-sec { background: #222; color: #fff; border: 1px solid #333; border-radius: 12px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; width: 100%; }
     .btn-green { background: transparent; color: #4ade80; border: 2px solid #4ade80; border-radius: 12px; padding: 10px 24px; font-size: 14px; font-weight: 700; cursor: pointer; }
     .btn-reveal { background: #1a1a1a; color: #fff; border: 2px dashed #444; border-radius: 16px; padding: 20px 40px; font-size: 18px; font-weight: 700; cursor: pointer; width: 100%; }
-    .btn-circle { width: 52px; height: 52px; border-radius: 50%; background: #1e1e1e; border: 2px solid #333; color: #fff; font-size: 24px; cursor: pointer; font-weight: 700; }
     .btn-vote { background: #1a1a1a; color: #fff; border: 2px solid #2a2a2a; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; }
     .btn-vote.selected { background: #0d2b1a; border-color: #4ade80; color: #4ade80; }
     .btn-disabled { opacity: 0.35; cursor: not-allowed; }
@@ -35,29 +34,18 @@
     .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #f87171; opacity: 0.25; font-weight: 900; }
     .timer { font-size: 32px; font-weight: 900; border: 3px solid; border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
-    .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
     .error { color: #f87171; font-size: 13px; }
     .hidden { display: none; }
     .screen { display: none; }
     .screen.active { display: block; }
-    .big-num { font-size: 64px; font-weight: 900; color: #4ade80; line-height: 1; }
-    .counter-row { display: flex; align-items: center; gap: 28px; margin: 8px 0; }
     .label-sm { color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
 
-    /* Animasyonlar */
     @keyframes fadeIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes popIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
     @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
-    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
-    @keyframes confetti { 0%{transform:translateY(0) rotate(0deg);opacity:1} 100%{transform:translateY(80px) rotate(360deg);opacity:0} }
-    .anim-fade { animation: fadeIn 0.4s ease forwards; }
     .anim-pop { animation: popIn 0.35s cubic-bezier(.17,.67,.45,1.4) forwards; }
     .anim-shake { animation: shake 0.5s ease; }
-    .anim-pulse { animation: pulse 0.6s ease infinite; }
     .screen.active { animation: fadeIn 0.3s ease forwards; }
-    .confetti-wrap { position:relative; overflow:hidden; }
-    .confetti-piece { position:absolute; width:8px; height:8px; border-radius:2px; animation: confetti 1s ease forwards; }
   </style>
 </head>
 <body>
@@ -69,22 +57,22 @@
   <!-- HOME -->
   <div id="screen-home" class="screen active">
     <div class="col">
-      <div style="font-size:52px">⚽</div>
+      <div style="font-size:48px">⚽</div>
       <h1>HAİN<br>KİM?</h1>
-      <p>Futbolun içindeki hain kim?<br>Arkadaşlarınla keşfet!</p>
+      <p>Futbolun içindeki haini bulmaya hazır mısın?</p>
       <p id="home-error" class="error hidden"></p>
       <input id="name-input" placeholder="Adın ne?" maxlength="20" />
-      <button class="btn" onclick="createRoom()">+ ODA KUR</button>
+      <button class="btn" onclick="createRoom()">Oda Kur</button>
       <div style="width:100%;display:flex;gap:8px">
-        <input id="room-input" placeholder="Oda kodu (XXXXX)" maxlength="5" style="flex:1;font-size:14px" oninput="this.value=this.value.toUpperCase()" />
-        <button class="btn-green" style="width:auto;padding:0 18px" onclick="joinRoom()">GİR</button>
+        <input id="room-input" placeholder="Oda Kodu (Örn: AB12C)" maxlength="5" style="flex:1;font-size:14px" oninput="this.value=this.value.toUpperCase()" />
+        <button class="btn-green" style="width:auto;padding:0 18px" onclick="joinRoom()">Gir</button>
       </div>
       <div class="rules-box">
-        <p style="color:#fff;font-size:13px;font-weight:700;margin-bottom:8px">📋 Nasıl Oynanır?</p>
-        <p style="color:#777;font-size:12px;margin:4px 0">• Oda kur, arkadaşlarına kodu gönder</p>
-        <p style="color:#777;font-size:12px;margin:4px 0">• Herkes kendi telefonundan katılır</p>
-        <p style="color:#777;font-size:12px;margin:4px 0">• Çoğunluk aynı takımı, hain farklı takımı alır</p>
-        <p style="color:#777;font-size:12px;margin:4px 0">• Konuşun, tartışın, haini bulun!</p>
+        <p style="color:#fff;font-size:13px;font-weight:700;margin-bottom:8px">Nasıl Oynanır?</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Oda kur ve kodunu arkadaşlarına gönder.</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Herkes odaya katılıp hazır versin.</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Çoğunluk aynı takımı, hain farklı takımı alır.</p>
+        <p style="color:#777;font-size:12px;margin:4px 0">• Konuşun, tartışın ve aradaki haini bulun!</p>
       </div>
     </div>
   </div>
@@ -92,41 +80,38 @@
   <!-- LOBBY -->
   <div id="screen-lobby" class="screen">
     <div class="col">
-      <h2>🏟️ Bekleme Odası</h2>
+      <h2>Bekleme Odası</h2>
       <div class="code-box">
         <p style="color:#4ade80;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">Oda Kodu</p>
         <p id="lobby-code" style="color:#fff;font-size:36px;font-weight:900;letter-spacing:6px"></p>
-        <p style="color:#4ade80;font-size:11px;margin-top:6px">Arkadaşlarına bu kodu gönder</p>
+        <p style="color:#4ade80;font-size:11px;margin-top:6px">Bu kodu arkadaşlarınla paylaş</p>
       </div>
       <div style="width:100%">
         <p class="label-sm" style="margin-bottom:8px">Katılanlar (<span id="lobby-count">0</span>)</p>
         <div id="lobby-players" class="chips"></div>
       </div>
       <p id="lobby-error" class="error hidden"></p>
-      <button id="ready-btn" class="btn-green" onclick="toggleReady()" style="width:100%">✋ Hazırım</button>
-      <p id="lobby-wait" class="hidden" style="color:#555;font-size:13px">Herkes hazır olunca oyun otomatik başlayacak...</p>
-      <button id="destroy-btn" class="hidden" onclick="destroyRoom()" style="background:transparent;color:#f87171;border:2px solid #f87171;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%">🚪 Odayı Dağıt</button>
-      <button id="leave-btn" class="hidden" onclick="leaveRoom()" style="background:transparent;color:#555;border:1px solid #333;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%">← Odadan Çık</button>
+      <button id="ready-btn" class="btn-green" onclick="toggleReady()" style="width:100%">Hazırım</button>
+      <p id="lobby-wait" class="hidden" style="color:#555;font-size:13px">Herkes hazır olunca oyun başlayacak...</p>
+      <button id="destroy-btn" class="hidden" onclick="destroyRoom()" style="background:transparent;color:#f87171;border:2px solid #f87171;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%">Odayı Dağıt</button>
+      <button id="leave-btn" class="hidden" onclick="leaveRoom()" style="background:transparent;color:#555;border:1px solid #333;border-radius:12px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;width:100%">Odadan Çık</button>
     </div>
   </div>
 
   <!-- CARD REVEAL -->
   <div id="screen-card_reveal" class="screen">
     <div class="col">
-      <h2>🃏 Kart Zamanı</h2>
+      <h2>Kart Zamanı</h2>
       <div id="reveal-timer" class="timer" style="border-color:#4ade80;color:#4ade80;margin:0 auto">10</div>
       <p>Süre bitmeden kartına bak ve takımını öğren!</p>
 
-      <!-- Kart göster butonu -->
       <div id="reveal-show-section">
-        <button class="btn-reveal" onclick="showMyCard()">KARTIMI GÖR 👀</button>
+        <button class="btn-reveal" onclick="showMyCard()">Kartımı Gör</button>
       </div>
 
-      <!-- Kart açık -->
       <div id="reveal-card" class="team-card hidden">
         <p style="color:#4ade80;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px">Takımın</p>
         <p id="reveal-team-name" style="color:#fff;font-size:26px;font-weight:900"></p>
-        <p style="font-size:36px;margin:4px 0">⚽</p>
       </div>
 
       <p style="color:#555;font-size:12px;margin-top:8px">Süre bitince otomatik tartışmaya geçilecek...</p>
@@ -147,30 +132,29 @@
           </div>
         </div>
       </div>
-      <button id="disc-start-timer-btn" class="hidden" onclick="startTimer()">⏱ SAYACI BAŞLAT</button>
+      <button id="disc-start-timer-btn" class="hidden" onclick="startTimer()">Sayacı Başlat</button>
       <p id="disc-timer-msg" class="hidden" style="color:#555;font-size:12px">Konuşun, tartışın...</p>
       <p id="disc-wait-host" class="hidden" style="color:#555;font-size:12px">Host sayacı başlatacak...</p>
       <div style="width:100%">
-        <p class="label-sm" style="margin-bottom:5px">Takıma bas → işaretle</p>
+        <p class="label-sm" style="margin-bottom:5px">Takıma basıp eleyebilirsin</p>
         <div id="teams-grid" class="teams-grid"></div>
       </div>
-      <button id="disc-vote-btn" class="btn btn-disabled" onclick="goToVoting()">🔒 <span id="disc-vote-txt">100s sonra açılır</span></button>
+      <button id="disc-vote-btn" class="btn btn-disabled" onclick="goToVoting()"><span id="disc-vote-txt">100s sonra açılır</span></button>
     </div>
   </div>
 
   <!-- VOTING -->
   <div id="screen-voting" class="screen">
     <div class="col">
-      <h2>🗳 Oylama</h2>
+      <h2>Oylama Zamanı</h2>
       <div id="voting-form" class="col" style="width:100%">
         <div id="vote-timer" style="font-size:28px;font-weight:900;border:3px solid #4ade80;border-radius:12px;width:60px;height:60px;display:flex;align-items:center;justify-content:center;color:#4ade80">15</div>
         <p>Hain kim olduğunu düşünüyorsun?</p>
         <div id="vote-list" style="display:flex;flex-direction:column;gap:10px;width:100%"></div>
-        <button id="vote-submit-btn" class="btn btn-disabled" onclick="submitVote()">OY VER ✓</button>
+        <button id="vote-submit-btn" class="btn btn-disabled" onclick="submitVote()">Oy Ver</button>
       </div>
       <div id="voting-done" class="hidden col">
-        <p style="font-size:40px">✅</p>
-        <p>Oyunu kullandın! Diğerleri bekleniyor...</p>
+        <p>Oyun kullanıldı! Diğer oyuncular bekleniyor...</p>
         <div id="vote-status" class="chips"></div>
       </div>
     </div>
@@ -179,19 +163,19 @@
   <!-- RESULT -->
   <div id="screen-result" class="screen">
     <div class="col">
-      <div id="result-emoji" style="font-size:60px"></div>
+      <div id="result-emoji" style="font-size:50px"></div>
       <h2 id="result-title"></h2>
       <p id="result-desc"></p>
       <p id="result-type" style="font-size:14px"></p>
       <div id="result-vote-summary" style="width:100%;background:#141414;border:1px solid #222;border-radius:14px;padding:12px">
-        <p class="label-sm" style="margin-bottom:8px">Kim kime oy verdi?</p>
+        <p class="label-sm" style="margin-bottom:8px">Kim Kime Oy Verdi?</p>
         <div id="result-vote-list" style="display:flex;flex-direction:column;gap:5px"></div>
       </div>
       <div style="width:100%">
         <p class="label-sm" style="margin-bottom:6px">Kalanlar:</p>
         <div id="result-players" class="chips"></div>
       </div>
-      <button id="result-cont-btn" class="btn hidden" onclick="continueRound()">DEVAM →</button>
+      <button id="result-cont-btn" class="btn hidden" onclick="continueRound()">Devam Et</button>
       <p id="result-wait" class="hidden" style="color:#555;font-size:12px">Host devam ettirecek...</p>
     </div>
   </div>
@@ -199,27 +183,27 @@
   <!-- GAME OVER -->
   <div id="screen-game_over" class="screen">
     <div class="col">
-      <div id="over-emoji" style="font-size:70px" class="anim-pop"></div>
+      <div id="over-emoji" style="font-size:60px" class="anim-pop"></div>
       <h2 id="over-title"></h2>
       <div class="reveal-box">
-        <p style="color:#aaa;font-size:12px;margin-bottom:6px">Hain oyuncu:</p>
+        <p style="color:#aaa;font-size:12px;margin-bottom:6px">Hain Oyuncu:</p>
         <p id="over-hain-name" style="font-size:22px;font-weight:bold;color:#f87171"></p>
         <p id="over-hain-team" style="color:#aaa;font-size:12px;margin-top:4px"></p>
       </div>
       <div class="reveal-box">
-        <p style="color:#aaa;font-size:12px;margin-bottom:6px">Grubun takımı:</p>
+        <p style="color:#aaa;font-size:12px;margin-bottom:6px">Grubun Takımı:</p>
         <p id="over-grup-team" style="font-size:18px;font-weight:bold;color:#4ade80"></p>
       </div>
       <div id="over-stats" class="reveal-box">
-        <p class="label-sm" style="margin-bottom:8px">🏆 Oyun İstatistikleri</p>
+        <p class="label-sm" style="margin-bottom:8px">Oyun İstatistikleri</p>
         <div id="over-stats-list" style="display:flex;flex-direction:column;gap:5px;text-align:left"></div>
       </div>
       <div id="over-ready" style="width:100%">
-        <p class="label-sm" style="margin-bottom:8px">Lobiye dönenler (<span id="over-ready-count">0</span>/<span id="over-total-count">0</span>)</p>
+        <p class="label-sm" style="margin-bottom:8px">Lobiye Dönenler (<span id="over-ready-count">0</span>/<span id="over-total-count">0</span>)</p>
         <div id="over-ready-list" class="chips"></div>
       </div>
       <div id="over-timer-wrap" style="color:#fbbf24;font-size:13px;font-weight:700"></div>
-      <button id="over-restart-btn" class="btn" onclick="readyToRestart()">🔄 TEKRAR OYNA</button>
+      <button id="over-restart-btn" class="btn" onclick="readyToRestart()">Tekrar Oyna</button>
       <p id="over-wait" class="hidden" style="color:#555;font-size:12px">Herkes hazır olunca başlıyor...</p>
     </div>
   </div>
@@ -418,7 +402,7 @@ function renderLobby() {
   if (isHost) {
     pc.innerHTML = players.map(p =>
       p.id === myId
-        ? `<span class="${p.ready?'chip-green':'chip'}">${p.name} 👑${p.ready?' ✓':''}</span>`
+        ? `<span class="${p.ready?'chip-green':'chip'}">${p.name} (Kurucu)${p.ready?' ✓':''}</span>`
         : `<div style="display:flex;align-items:center;gap:6px">
             <span class="${p.ready?'chip-green':'chip'}">${p.name}${p.ready?' ✓':''}</span>
             <button onclick="kickPlayer('${p.id}')" style="background:#2a0d0d;color:#f87171;border:1px solid #f87171;border-radius:8px;padding:3px 8px;font-size:11px;cursor:pointer">At</button>
@@ -426,18 +410,18 @@ function renderLobby() {
     ).join("");
   } else {
     pc.innerHTML = players.map(p =>
-      `<span class="${p.ready?'chip-green':'chip'}">${p.name}${p.id===roomData.host?' 👑':''}${p.ready?' ✓':''}</span>`
+      `<span class="${p.ready?'chip-green':'chip'}">${p.name}${p.id===roomData.host?' (Kurucu)':''}${p.ready?' ✓':''}</span>`
     ).join("");
   }
 
   const myReady = roomData?.players?.[myId]?.ready;
   const readyBtn = document.getElementById("ready-btn");
   if (myReady) {
-    readyBtn.textContent = "✅ Hazırım (iptal et)";
+    readyBtn.textContent = "Hazırsın (İptal Et)";
     readyBtn.style.borderColor = "#4ade80";
     readyBtn.style.color = "#4ade80";
   } else {
-    readyBtn.textContent = "✋ Hazırım";
+    readyBtn.textContent = "Hazırım";
     readyBtn.style.borderColor = "#4ade80";
     readyBtn.style.color = "#4ade80";
   }
@@ -505,8 +489,13 @@ window.startGame = async function() {
   const players = getPlayers();
   if (players.length < 3) return;
 
+  // Takımları her seferinde tamamen rastgele karıştırıyoruz
   const teamPool = shuffle(TEAMS);
-  const mainTeam = teamPool[0], hainTeam = teamPool[1];
+  const mainTeam = teamPool[0];
+  let hainTeam = teamPool[1];
+  if (hainTeam === mainTeam) hainTeam = teamPool[2];
+
+  // %100 eşit ve rastgele hain seçimi (hiçbir ağırlık/geçmiş hesabı yok)
   const hainIndex = Math.floor(Math.random() * players.length);
   const assignments = {};
   
@@ -548,10 +537,10 @@ function renderDiscussion() {
   const voteBtn = document.getElementById("disc-vote-btn");
   if (canVote) {
     voteBtn.classList.remove("btn-disabled");
-    voteBtn.innerHTML = "🗳 OYLAMAYA GEÇ";
+    voteBtn.innerHTML = "Oylamaya Geç";
   } else {
     voteBtn.classList.add("btn-disabled");
-    voteBtn.innerHTML = `🔒 ${timer-100}s sonra açılır`;
+    voteBtn.innerHTML = `${timer-100}s sonra açılır`;
   }
 
   const grid = document.getElementById("teams-grid");
@@ -690,14 +679,13 @@ function renderResult() {
 
   const emoji = document.getElementById("result-emoji");
   emoji.textContent = rr.isHain ? "🎉" : "😱";
-  emoji.className = rr.isHain ? "anim-pop" : "anim-shake";
 
   const title = document.getElementById("result-title");
   title.textContent = rr.isHain ? "İyi İş!" : "Yanlış Seçim!";
   title.style.color = rr.isHain ? "#4ade80" : "#f87171";
   document.getElementById("result-desc").textContent = `${elimName} elendi.`;
   const rt = document.getElementById("result-type");
-  rt.textContent = rr.isHain ? "✅ Bu kişi HAİNdi!" : "❌ Bu kişi masumdu!";
+  rt.textContent = rr.isHain ? "Bu kişi HAİNdi!" : "Bu kişi masumdu!";
   rt.style.color = rr.isHain ? "#4ade80" : "#f87171";
 
   const votes = roomData.lastVotes || roomData.votes || {};
@@ -724,7 +712,6 @@ function renderGameOver() {
   const winner = roomData.winner;
   const emoji = document.getElementById("over-emoji");
   emoji.textContent = winner==="GRUP" ? "🏆" : "🕵️";
-  emoji.className = "anim-pop";
 
   const title = document.getElementById("over-title");
   title.textContent = winner==="GRUP" ? "GRUP KAZANDI!" : "HAİN KAZANDI!";
@@ -746,10 +733,10 @@ function renderGameOver() {
   const totalRounds = (roomData.round || 1) - 1;
 
   document.getElementById("over-stats-list").innerHTML = `
-    <p style="font-size:12px;color:#777">🎯 Toplam tur: <span style="color:#fff">${totalRounds}</span></p>
-    <p style="font-size:12px;color:#777">🔥 En çok oy alan: <span style="color:#fbbf24">${mostVoted?.name || "?"} (${voteCount[mostVoted?.id]||0} oy)</span></p>
-    ${noVotes.length ? `<p style="font-size:12px;color:#777">😎 Hiç oy almayan: <span style="color:#4ade80">${noVotes.map(p=>p.name).join(", ")}</span></p>` : ""}
-    <p style="font-size:12px;color:#777">🕵️ Hain: <span style="color:#f87171">${roomData.players?.[hainId]?.name || "?"}</span></p>
+    <p style="font-size:12px;color:#777">Toplam Tur: <span style="color:#fff">${totalRounds}</span></p>
+    <p style="font-size:12px;color:#777">En Çok Oy Alan: <span style="color:#fbbf24">${mostVoted?.name || "?"} (${voteCount[mostVoted?.id]||0} oy)</span></p>
+    ${noVotes.length ? `<p style="font-size:12px;color:#777">Hiç Oy Almayan: <span style="color:#4ade80">${noVotes.map(p=>p.name).join(", ")}</span></p>` : ""}
+    <p style="font-size:12px;color:#777">Hain: <span style="color:#f87171">${roomData.players?.[hainId]?.name || "?"}</span></p>
   `;
 
   show("over-restart-btn");
@@ -765,16 +752,15 @@ function renderGameOver() {
 
   const restartBtn = document.getElementById("over-restart-btn");
   if (restartReady[myId]) {
-    restartBtn.textContent = "✓ Hazırsın";
+    restartBtn.textContent = "Hazırsın";
     restartBtn.classList.add("btn-disabled");
     restartBtn.onclick = null;
   } else {
-    restartBtn.textContent = "🔄 TEKRAR OYNA";
+    restartBtn.textContent = "Tekrar Oyna";
     restartBtn.classList.remove("btn-disabled");
     restartBtn.onclick = readyToRestart;
   }
 
-  // Herkes hazır olduğunda otomatik lobiye dön ve sıfırla
   if (readyCount >= players.length) {
     if (isHost) {
       resetGame();
@@ -785,13 +771,13 @@ function renderGameOver() {
   clearInterval(overTimerInterval);
   const overT = roomData.overTimer ?? 15;
   const timerWrap = document.getElementById("over-timer-wrap");
-  timerWrap.textContent = `⏱ ${overT}s sonra otomatik lobiye atılırsın`;
+  timerWrap.textContent = `${overT}s sonra otomatik lobiye atılırsın`;
 
   if (overT > 0) {
     overTimerInterval = setInterval(() => {
       const newT = (roomData.overTimer ?? 1) - 1;
       const tw = document.getElementById("over-timer-wrap");
-      if (tw) tw.textContent = newT > 0 ? `⏱ ${newT}s sonra otomatik lobiye atılırsın` : "";
+      if (tw) tw.textContent = newT > 0 ? `${newT}s sonra otomatik lobiye atılırsın` : "";
       if (isHost) update(ref(db,`rooms/${roomCode}`), { overTimer: newT });
       if (newT <= 0) {
         clearInterval(overTimerInterval);
@@ -809,7 +795,7 @@ let overTimerInterval = null;
 
 window.readyToRestart = async function() {
   const btn = document.getElementById("over-restart-btn");
-  btn.textContent = "✓ Hazırsın";
+  btn.textContent = "Hazırsın";
   btn.classList.add("btn-disabled");
   btn.onclick = null;
   await update(ref(db,`rooms/${roomCode}/restartReady`), { [myId]: true });

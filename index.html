@@ -28,10 +28,10 @@
     .team-card { background: #0d2b1a; border: 2px solid #4ade80; border-radius: 20px; padding: 28px 24px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .reveal-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 16px 24px; width: 100%; }
     .rules-box { background: #141414; border: 1px solid #222; border-radius: 16px; padding: 16px; width: 100%; text-align: left; }
-    .teams-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; width: 100%; }
-    .team-btn { position: relative; background: #1a1a1a; color: #aaa; border: 1px solid #252525; border-radius: 5px; padding: 5px 1px; cursor: pointer; font-size: 8px; overflow: hidden; line-height: 1.1; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
+    .teams-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+    .team-btn { position: relative; background: #1a1a1a; color: #aaa; border: 1px solid #252525; border-radius: 8px; padding: 8px 4px; cursor: pointer; font-size: 11px; overflow: hidden; line-height: 1.2; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
     .team-btn.crossed { background: #2a0d0d; color: #f87171; border-color: #f87171; font-weight: 700; }
-    .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #f87171; opacity: 0.3; font-weight: 900; }
+    .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #f87171; opacity: 0.3; font-weight: 900; }
     .timer { font-size: 32px; font-weight: 900; border: 3px solid; border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
     .error { color: #f87171; font-size: 13px; }
@@ -277,6 +277,7 @@ window.kickPlayer = async function(id) {
 }
 
 window.destroyRoom = async function() {
+  if (roomCode) localStorage.removeItem('hain_myId_' + roomCode);
   await set(ref(db,`rooms/${roomCode}`), null);
   roomCode = null; myId = null; isHost = false; roomData = null;
   showScreen("home");
@@ -284,6 +285,7 @@ window.destroyRoom = async function() {
 
 window.leaveRoom = function() {
   if (roomCode && myId) {
+    localStorage.removeItem('hain_myId_' + roomCode);
     set(ref(db, `rooms/${roomCode}/players/${myId}`), null);
   }
   roomCode = null; myId = null; isHost = false; roomData = null;
@@ -310,6 +312,7 @@ window.createRoom = async function() {
       host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
       players: { [id]: { name, ready: false } }
     });
+    localStorage.setItem('hain_myId_' + code, id);
     myName = name; roomCode = code; isHost = true; myId = id;
     listenRoom();
     showScreen("lobby");
@@ -331,18 +334,23 @@ window.joinRoom = async function() {
     if (!data) { showError("home-error","Oda bulunamadı!"); return; }
     if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
     
-    const existingPlayers = Object.entries(data.players || {});
-    const found = existingPlayers.find(([pid, p]) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
-    let id;
-    if (found) {
-      id = found[0];
-      await update(ref(db, `rooms/${code}/players/${id}`), { ready: false });
+    let id = localStorage.getItem('hain_myId_' + code);
+    if (id && data.players && data.players[id]) {
+      await update(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
     } else {
-      const newPlayerRef = push(ref(db, `rooms/${code}/players`));
-      id = newPlayerRef.key;
-      await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+      const existingPlayers = Object.entries(data.players || {});
+      const found = existingPlayers.find(([pid, p]) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+      if (found) {
+        id = found[0];
+        await update(ref(db, `rooms/${code}/players/${id}`), { ready: false });
+      } else {
+        const newPlayerRef = push(ref(db, `rooms/${code}/players`));
+        id = newPlayerRef.key;
+        await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+      }
     }
     
+    localStorage.setItem('hain_myId_' + code, id);
     myName = name; roomCode = code; isHost = false; myId = id;
     listenRoom();
     showScreen("lobby");
@@ -361,6 +369,7 @@ function listenRoom() {
       return;
     }
     if (roomCode && myId && data.players && !data.players[myId]) {
+      localStorage.removeItem('hain_myId_' + roomCode);
       roomCode = null; myId = null; isHost = false; roomData = null;
       showScreen("home");
       alert("Odadan atıldın!");

@@ -50,9 +50,6 @@
 </head>
 <body>
 <div class="card">
-<div id="back-btn" class="hidden" style="margin-bottom:12px">
-  <button onclick="goBack()" style="background:transparent;border:none;color:#555;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px">← Geri</button>
-</div>
 
   <!-- HOME -->
   <div id="screen-home" class="screen active">
@@ -120,6 +117,10 @@
 
   <!-- DISCUSSION -->
   <div id="screen-discussion" class="screen">
+    <!-- Sol üst küçük çıkış tuşu -->
+    <div style="width:100%; display:flex; justify-content:flex-start; margin-bottom:4px;">
+      <button onclick="leaveRoom()" style="background:#1a1a1a; color:#f87171; border:1px solid #333; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer;">Odadan Ayrıl</button>
+    </div>
     <div class="col">
       <div class="row">
         <div id="disc-timer" class="timer" style="border-color:#4ade80;color:#4ade80">180</div>
@@ -203,7 +204,11 @@
         <div id="over-ready-list" class="chips"></div>
       </div>
       <div id="over-timer-wrap" style="color:#fbbf24;font-size:13px;font-weight:700"></div>
-      <button id="over-restart-btn" class="btn" onclick="readyToRestart()">Tekrar Oyna</button>
+      
+      <div style="display:flex; gap:8px; width:100%;">
+        <button id="over-restart-btn" class="btn" style="flex:1;" onclick="readyToRestart()">Tekrar Oyna</button>
+        <button class="btn-sec" style="flex:1;" onclick="resetGame()">Lobiye Git</button>
+      </div>
       <p id="over-wait" class="hidden" style="color:#555;font-size:12px">Herkes hazır olunca başlıyor...</p>
     </div>
   </div>
@@ -258,11 +263,6 @@ function showScreen(name) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   const el = document.getElementById("screen-"+name);
   if (el) el.classList.add("active");
-  if (name === "home" || name === "lobby") {
-    document.getElementById("back-btn").classList.add("hidden");
-  } else {
-    document.getElementById("back-btn").classList.remove("hidden");
-  }
 }
 
 window.toggleReady = async function() {
@@ -282,22 +282,11 @@ window.destroyRoom = async function() {
 }
 
 window.leaveRoom = function() {
+  if (roomCode && myId) {
+    set(ref(db, `rooms/${roomCode}/players/${myId}`), null);
+  }
   roomCode = null; myId = null; isHost = false; roomData = null;
   showScreen("home");
-}
-
-window.goBack = function() {
-  const state = roomData?.gameState;
-  if (state === "lobby") {
-    roomCode = null; myId = null; isHost = false; roomData = null;
-    showScreen("home");
-  } else if (state === "discussion" || state === "card_reveal") {
-    showScreen("lobby");
-  } else if (state === "voting") {
-    showScreen("discussion");
-  } else {
-    showScreen("home");
-  }
 }
 
 function showError(id, msg) {
@@ -320,7 +309,7 @@ window.createRoom = async function() {
       host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
       players: { [id]: { name, ready: false } }
     });
-    myName=name; roomCode=code; isHost=true; myId=id;
+    myName = name; roomCode = code; isHost = true; myId = id;
     listenRoom();
     showScreen("lobby");
     document.getElementById("lobby-code").textContent = code;
@@ -345,7 +334,7 @@ window.joinRoom = async function() {
     const id = newPlayerRef.key;
     await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
     
-    myName=name; roomCode=code; isHost=false; myId=id;
+    myName = name; roomCode = code; isHost = false; myId = id;
     listenRoom();
     showScreen("lobby");
     document.getElementById("lobby-code").textContent = code;
@@ -441,7 +430,6 @@ function renderLobby() {
 let cardRevealInterval = null;
 
 function renderReveal() {
-  // Kartı her tur / açılışta kapalı hale getiriyoruz ki siz tıklayıp açın
   hide("reveal-card");
   show("reveal-show-section");
 
@@ -493,13 +481,11 @@ window.startGame = async function() {
   const players = getPlayers();
   if (players.length < 3) return;
 
-  // Takımları tamamen rastgele karıştırıyoruz
   const teamPool = shuffle(TEAMS);
   const mainTeam = teamPool[0];
   let hainTeam = teamPool[1];
   if (hainTeam === mainTeam) hainTeam = teamPool[2];
 
-  // %100 eşit ve rastgele hain seçimi
   const hainIndex = Math.floor(Math.random() * players.length);
   const assignments = {};
   

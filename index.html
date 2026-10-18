@@ -117,7 +117,6 @@
 
   <!-- DISCUSSION -->
   <div id="screen-discussion" class="screen">
-    <!-- Sol üst küçük çıkış tuşu -->
     <div style="width:100%; display:flex; justify-content:flex-start; margin-bottom:4px;">
       <button onclick="leaveRoom()" style="background:#1a1a1a; color:#f87171; border:1px solid #333; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:700; cursor:pointer;">Odadan Ayrıl</button>
     </div>
@@ -245,6 +244,7 @@ const TEAMS = [
 let myId = null, roomCode = null, isHost = false, myName = "";
 let roomData = null, timerInterval = null, voteTarget = null, myVoted = false;
 let crossed = {};
+let cardOpened = false;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -330,9 +330,18 @@ window.joinRoom = async function() {
     if (!data) { showError("home-error","Oda bulunamadı!"); return; }
     if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
     
-    const newPlayerRef = push(ref(db, `rooms/${code}/players`));
-    const id = newPlayerRef.key;
-    await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+    // Aynı isimde veya eski kayıtta mükerrer giriş olmaması için kontrol ve slot paylaşımı
+    const existingPlayers = Object.entries(data.players || {});
+    const found = existingPlayers.find(([pid, p]) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+    let id;
+    if (found) {
+      id = found[0];
+      await update(ref(db, `rooms/${code}/players/${id}`), { ready: false });
+    } else {
+      const newPlayerRef = push(ref(db, `rooms/${code}/players`));
+      id = newPlayerRef.key;
+      await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+    }
     
     myName = name; roomCode = code; isHost = false; myId = id;
     listenRoom();
@@ -362,6 +371,9 @@ function listenRoom() {
     roomData = data;
     const state = data.gameState;
     if (!prev || prev.gameState !== state) {
+      if (state === "card_reveal") {
+        cardOpened = false;
+      }
       showScreen(state);
       renderScreen(state);
     } else {
@@ -430,8 +442,15 @@ function renderLobby() {
 let cardRevealInterval = null;
 
 function renderReveal() {
-  hide("reveal-card");
-  show("reveal-show-section");
+  if (!cardOpened) {
+    hide("reveal-card");
+    show("reveal-show-section");
+  } else {
+    hide("reveal-show-section");
+    show("reveal-card");
+    const team = roomData.assignments?.[myId]?.team || "?";
+    document.getElementById("reveal-team-name").textContent = team;
+  }
 
   const revT = roomData.revealTimer ?? 10;
   const timerEl = document.getElementById("reveal-timer");
@@ -463,10 +482,16 @@ function renderReveal() {
 }
 
 window.showMyCard = function() {
-  hide("reveal-show-section");
-  show("reveal-card");
-  const team = roomData.assignments?.[myId]?.team || "?";
-  document.getElementById("reveal-team-name").textContent = team;
+  cardOpened = !cardOpened;
+  if (cardOpened) {
+    hide("reveal-show-section");
+    show("reveal-card");
+    const team = roomData.assignments?.[myId]?.team || "?";
+    document.getElementById("reveal-team-name").textContent = team;
+  } else {
+    show("reveal-show-section");
+    hide("reveal-card");
+  }
 }
 
 window.goToDiscussion = async function() {

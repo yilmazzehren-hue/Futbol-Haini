@@ -102,11 +102,11 @@
       <div id="reveal-timer" class="timer" style="border-color:#4ade80;color:#4ade80;margin:0 auto">10</div>
       <p>Süre bitmeden kartına bak ve takımını öğren!</p>
 
-      <div id="reveal-show-section">
-        <button class="btn-reveal" onclick="showMyCard()">Kartımı Gör</button>
+      <div style="width:100%;">
+        <button id="reveal-btn-el" class="btn-reveal" onclick="showMyCard()">Kartımı Gör</button>
       </div>
 
-      <div id="reveal-card" class="team-card hidden">
+      <div id="reveal-card" class="team-card hidden" style="margin-top: 10px;">
         <p style="color:#4ade80;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:2px">Takımın</p>
         <p id="reveal-team-name" style="color:#fff;font-size:26px;font-weight:900"></p>
       </div>
@@ -330,7 +330,6 @@ window.joinRoom = async function() {
     if (!data) { showError("home-error","Oda bulunamadı!"); return; }
     if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
     
-    // Aynı isimde veya eski kayıtta mükerrer giriş olmaması için kontrol ve slot paylaşımı
     const existingPlayers = Object.entries(data.players || {});
     const found = existingPlayers.find(([pid, p]) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
     let id;
@@ -441,16 +440,28 @@ function renderLobby() {
 
 let cardRevealInterval = null;
 
-function renderReveal() {
-  if (!cardOpened) {
-    hide("reveal-card");
-    show("reveal-show-section");
-  } else {
-    hide("reveal-show-section");
-    show("reveal-card");
+function updateRevealUI() {
+  const cardEl = document.getElementById("reveal-card");
+  const btnEl = document.getElementById("reveal-btn-el");
+  if (!cardEl || !btnEl) return;
+  
+  if (cardOpened) {
+    cardEl.classList.remove("hidden");
+    btnEl.textContent = "Kartı Gizle";
+    btnEl.style.borderColor = "#f87171";
+    btnEl.style.color = "#f87171";
     const team = roomData.assignments?.[myId]?.team || "?";
     document.getElementById("reveal-team-name").textContent = team;
+  } else {
+    cardEl.classList.add("hidden");
+    btnEl.textContent = "Kartımı Gör";
+    btnEl.style.borderColor = "#444";
+    btnEl.style.color = "#fff";
   }
+}
+
+function renderReveal() {
+  updateRevealUI();
 
   const revT = roomData.revealTimer ?? 10;
   const timerEl = document.getElementById("reveal-timer");
@@ -483,15 +494,7 @@ function renderReveal() {
 
 window.showMyCard = function() {
   cardOpened = !cardOpened;
-  if (cardOpened) {
-    hide("reveal-show-section");
-    show("reveal-card");
-    const team = roomData.assignments?.[myId]?.team || "?";
-    document.getElementById("reveal-team-name").textContent = team;
-  } else {
-    show("reveal-show-section");
-    hide("reveal-card");
-  }
+  updateRevealUI();
 }
 
 window.goToDiscussion = async function() {

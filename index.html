@@ -441,6 +441,10 @@ function renderLobby() {
 let cardRevealInterval = null;
 
 function renderReveal() {
+  // Kartı her tur / açılışta kapalı hale getiriyoruz ki siz tıklayıp açın
+  hide("reveal-card");
+  show("reveal-show-section");
+
   const revT = roomData.revealTimer ?? 10;
   const timerEl = document.getElementById("reveal-timer");
   if (timerEl) {
@@ -489,13 +493,13 @@ window.startGame = async function() {
   const players = getPlayers();
   if (players.length < 3) return;
 
-  // Takımları her seferinde tamamen rastgele karıştırıyoruz
+  // Takımları tamamen rastgele karıştırıyoruz
   const teamPool = shuffle(TEAMS);
   const mainTeam = teamPool[0];
   let hainTeam = teamPool[1];
   if (hainTeam === mainTeam) hainTeam = teamPool[2];
 
-  // %100 eşit ve rastgele hain seçimi (hiçbir ağırlık/geçmiş hesabı yok)
+  // %100 eşit ve rastgele hain seçimi
   const hainIndex = Math.floor(Math.random() * players.length);
   const assignments = {};
   

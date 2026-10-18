@@ -28,10 +28,10 @@
     .team-card { background: #0d2b1a; border: 2px solid #4ade80; border-radius: 20px; padding: 28px 24px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; }
     .reveal-box { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 16px; padding: 16px 24px; width: 100%; }
     .rules-box { background: #141414; border: 1px solid #222; border-radius: 16px; padding: 16px; width: 100%; text-align: left; }
-    .teams-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; width: 100%; }
-    .team-btn { position: relative; background: #1a1a1a; color: #aaa; border: 1px solid #252525; border-radius: 7px; padding: 6px 3px; cursor: pointer; font-size: 10px; overflow: hidden; line-height: 1.2; }
+    .teams-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; width: 100%; }
+    .team-btn { position: relative; background: #1a1a1a; color: #aaa; border: 1px solid #252525; border-radius: 5px; padding: 5px 1px; cursor: pointer; font-size: 8px; overflow: hidden; line-height: 1.1; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
     .team-btn.crossed { background: #2a0d0d; color: #f87171; border-color: #f87171; font-weight: 700; }
-    .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #f87171; opacity: 0.25; font-weight: 900; }
+    .team-btn.crossed::before { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; color: #f87171; opacity: 0.3; font-weight: 900; }
     .timer { font-size: 32px; font-weight: 900; border: 3px solid; border-radius: 12px; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .row { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px; }
     .error { color: #f87171; font-size: 13px; }
@@ -122,12 +122,12 @@
     </div>
     <div class="col">
       <div class="row">
-        <div id="disc-timer" class="timer" style="border-color:#4ade80;color:#4ade80">180</div>
+        <div id="disc-timer" class="timer" style="border-color:#4ade80;color:#4ade80">300</div>
         <div style="text-align:right">
           <p class="label-sm" style="margin-bottom:5px">Tur <span id="disc-round">1</span> — Oyuncular</p>
           <div id="disc-players" class="chips" style="justify-content:flex-end"></div>
-          <div style="margin-top:8px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:5px 10px;display:inline-block">
-            <p style="color:#555;font-size:10px;margin-bottom:2px">Takımın</p>
+          <div onclick="toggleTeamPrivacy()" style="margin-top:8px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:5px 10px;display:inline-block;cursor:pointer;" title="Takımı Gizle / Göster">
+            <p style="color:#555;font-size:10px;margin-bottom:2px">Takımın <span style="font-size:8px;color:#4ade80">(Gizle)</span></p>
             <p id="disc-my-team" style="color:#4ade80;font-size:13px;font-weight:800"></p>
           </div>
         </div>
@@ -245,6 +245,7 @@ let myId = null, roomCode = null, isHost = false, myName = "";
 let roomData = null, timerInterval = null, voteTarget = null, myVoted = false;
 let crossed = {};
 let cardOpened = false;
+let teamHidden = false;
 
 function shuffle(arr) {
   const a = [...arr];
@@ -373,6 +374,9 @@ function listenRoom() {
       if (state === "card_reveal") {
         cardOpened = false;
       }
+      if (state === "discussion") {
+        teamHidden = false;
+      }
       showScreen(state);
       renderScreen(state);
     } else {
@@ -497,12 +501,21 @@ window.showMyCard = function() {
   updateRevealUI();
 }
 
+window.toggleTeamPrivacy = function() {
+  teamHidden = !teamHidden;
+  const teamEl = document.getElementById("disc-my-team");
+  if (teamEl) {
+    const actualTeam = roomData?.assignments?.[myId]?.team || "?";
+    teamEl.textContent = teamHidden ? "••••••" : actualTeam;
+  }
+}
+
 window.goToDiscussion = async function() {
   if (cardRevealInterval) {
     clearInterval(cardRevealInterval);
     cardRevealInterval = null;
   }
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", timer:180, timerActive:true });
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", timer:300, timerActive:true });
 }
 
 window.startGame = async function() {
@@ -525,18 +538,19 @@ window.startGame = async function() {
   await update(ref(db,`rooms/${roomCode}`), {
     gameState:"card_reveal", assignments,
     eliminated:{}, votes:{}, roundResult:null, winner:null,
-    timer:180, timerActive:false, round:1, revealTimer:10, restartReady:null, overTimer:null
+    timer:300, timerActive:false, round:1, revealTimer:10, restartReady:null, overTimer:null
   });
 }
 
 function renderDiscussion() {
   clearInterval(timerInterval);
-  const timer = roomData.timer ?? 120;
+  const timer = roomData.timer ?? 300;
   const timerActive = roomData.timerActive || false;
   const round = roomData.round || 1;
 
   document.getElementById("disc-round").textContent = round;
-  document.getElementById("disc-my-team").textContent = roomData?.assignments?.[myId]?.team || "?";
+  const actualTeam = roomData?.assignments?.[myId]?.team || "?";
+  document.getElementById("disc-my-team").textContent = teamHidden ? "••••••" : actualTeam;
   updateTimerDisplay(timer);
 
   const active = getActivePlayers();
@@ -596,7 +610,7 @@ window.startTimer = async function() {
 let voteTimerInterval = null;
 
 window.goToVoting = async function() {
-  const timer = roomData.timer ?? 180;
+  const timer = roomData.timer ?? 300;
   const timerActive = roomData.timerActive || false;
   if (timerActive && timer > 100) return;
   await update(ref(db,`rooms/${roomCode}`), { gameState:"voting", timerActive:false, votes:{}, voteTimer:15 });
@@ -723,7 +737,7 @@ function renderResult() {
 
 window.continueRound = async function() {
   myVoted = false; voteTarget = null; crossed = {};
-  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", roundResult:null, timer:180, timerActive:true, votes:{} });
+  await update(ref(db,`rooms/${roomCode}`), { gameState:"discussion", roundResult:null, timer:300, timerActive:true, votes:{} });
 }
 
 function renderGameOver() {

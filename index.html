@@ -3,10 +3,11 @@
 <head>
   <meta name="google-site-verification" content="uuwlQ3x9kkrRogBBBQJ-XL6_jvCakC71jP2hnunuMR8" />
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Hain Kim?</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     body { background: #0a0a0a; font-family: sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
     .card { width: 100%; max-width: 420px; background: #111; border-radius: 20px; padding: 24px 18px; border: 1px solid #222; min-height: 500px; }
     .col { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
@@ -154,7 +155,7 @@
         <button id="vote-submit-btn" class="btn btn-disabled" onclick="submitVote()">Oy Ver</button>
       </div>
       <div id="voting-done" class="hidden col">
-        <p>Oyun kullanıldı! Diğer oyuncular bekleniyor...</p>
+        <p id="vote-done-msg">Oy kullanıldı! Diğer oyuncular bekleniyor...</p>
         <div id="vote-status" class="chips"></div>
       </div>
     </div>
@@ -216,7 +217,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, push, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, push, get, onDisconnect } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhyJewchvlo1eeqU6KzrKEA7j0EKVHHHQ",
@@ -246,6 +247,58 @@ let roomData = null, timerInterval = null, voteTarget = null, myVoted = false;
 let crossed = {};
 let cardOpened = false;
 let teamHidden = false;
+let unsubRoom = null, presenceRef = null, wakeLock = null;
+let starting = false, tallying = false;
+
+const ls = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+// Oyuncu adlarını HTML'e basmadan önce temizle (kod enjeksiyonunu engeller)
+function esc(v) {
+  return String(v ?? "").replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Ekran açık kalsın (host telefonu uyursa sayaçlar durur)
+async function keepAwake() {
+  try {
+    if ("wakeLock" in navigator && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && roomCode) keepAwake();
+});
+
+// Çevrimiçi/çevrimdışı takibi (host kopunca devir için)
+function setupPresence() {
+  if (!roomCode || !myId) return;
+  presenceRef = ref(db, `rooms/${roomCode}/players/${myId}/online`);
+  onDisconnect(presenceRef).set(false);
+  set(presenceRef, true);
+}
+onValue(ref(db, ".info/connected"), s => { if (s.val() === true) setupPresence(); });
+
+// Yerel durumu tamamen sıfırla (eski dinleyiciyi ve sayaçları kapatır)
+function resetLocal() {
+  if (unsubRoom) { unsubRoom(); unsubRoom = null; }
+  if (presenceRef) { try { onDisconnect(presenceRef).cancel(); } catch (e) {} presenceRef = null; }
+  clearInterval(timerInterval);
+  clearInterval(voteTimerInterval);
+  clearInterval(overTimerInterval);
+  clearInterval(cardRevealInterval);
+  cardRevealInterval = null;
+  try { if (wakeLock) wakeLock.release(); } catch (e) {}
+  wakeLock = null;
+  roomCode = null; myId = null; isHost = false; roomData = null;
+  myVoted = false; voteTarget = null; crossed = {};
+  starting = false; tallying = false;
+}
 
 function shuffle(arr) {
   const a = [...arr];
@@ -277,19 +330,28 @@ window.kickPlayer = async function(id) {
 }
 
 window.destroyRoom = async function() {
-  if (roomCode) localStorage.removeItem('hain_myId_' + roomCode);
-  await set(ref(db,`rooms/${roomCode}`), null);
-  roomCode = null; myId = null; isHost = false; roomData = null;
+  const code = roomCode;
+  if (code) ls.del('hain_myId_' + code);
+  resetLocal();
   showScreen("home");
+  if (code) { try { await set(ref(db, `rooms/${code}`), null); } catch (e) {} }
 }
 
 window.leaveRoom = function() {
-  if (roomCode && myId) {
-    localStorage.removeItem('hain_myId_' + roomCode);
-    set(ref(db, `rooms/${roomCode}/players/${myId}`), null);
-  }
-  roomCode = null; myId = null; isHost = false; roomData = null;
+  const code = roomCode, id = myId, data = roomData, wasHost = isHost;
+  resetLocal();
   showScreen("home");
+  if (!code || !id) return;
+  ls.del('hain_myId_' + code);
+  const players = data?.players || {};
+  const others = Object.keys(players).filter(pid => pid !== id);
+  if (!others.length) { set(ref(db, `rooms/${code}`), null); return; }
+  const upd = { [`players/${id}`]: null };
+  if (wasHost) {
+    const online = others.filter(pid => players[pid].online !== false);
+    upd.host = (online.length ? online : others).sort()[0];   // host başkasına geçer
+  }
+  update(ref(db, `rooms/${code}`), upd);
 }
 
 function showError(id, msg) {
@@ -310,11 +372,12 @@ window.createRoom = async function() {
   try {
     await set(ref(db,`rooms/${code}`), {
       host: id, gameState: "lobby", timer: 120, timerActive: false, round: 1,
-      players: { [id]: { name, ready: false } }
+      players: { [id]: { name, ready: false, online: true } }
     });
-    localStorage.setItem('hain_myId_' + code, id);
+    ls.set('hain_myId_' + code, id);
     myName = name; roomCode = code; isHost = true; myId = id;
     listenRoom();
+    setupPresence();
     showScreen("lobby");
     document.getElementById("lobby-code").textContent = code;
   } catch (err) {
@@ -334,25 +397,26 @@ window.joinRoom = async function() {
     if (!data) { showError("home-error","Oda bulunamadı!"); return; }
     if (data.gameState !== "lobby") { showError("home-error","Oyun başlamış!"); return; }
     
-    let id = localStorage.getItem('hain_myId_' + code);
+    let id = ls.get('hain_myId_' + code);
     if (id && data.players && data.players[id]) {
       await update(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
     } else {
       const existingPlayers = Object.entries(data.players || {});
-      const found = existingPlayers.find(([pid, p]) => p.name.trim().toLowerCase() === name.trim().toLowerCase());
+      const found = existingPlayers.find(([pid, p]) => (p.name || '').trim().toLowerCase() === name.trim().toLowerCase());
       if (found) {
         id = found[0];
         await update(ref(db, `rooms/${code}/players/${id}`), { ready: false });
       } else {
         const newPlayerRef = push(ref(db, `rooms/${code}/players`));
         id = newPlayerRef.key;
-        await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false });
+        await set(ref(db, `rooms/${code}/players/${id}`), { name, ready: false, online: true });
       }
     }
     
-    localStorage.setItem('hain_myId_' + code, id);
+    ls.set('hain_myId_' + code, id);
     myName = name; roomCode = code; isHost = false; myId = id;
     listenRoom();
+    setupPresence();
     showScreen("lobby");
     document.getElementById("lobby-code").textContent = code;
   } catch (err) {
@@ -361,36 +425,45 @@ window.joinRoom = async function() {
 }
 
 function listenRoom() {
-  onValue(ref(db,`rooms/${roomCode}`), snap => {
+  if (unsubRoom) { unsubRoom(); unsubRoom = null; }   // eski odanın dinleyicisini kapat
+  const code = roomCode;
+  keepAwake();
+  unsubRoom = onValue(ref(db, `rooms/${code}`), snap => {
+    if (code !== roomCode) return;
     const data = snap.val();
     if (!data) {
-      roomCode = null; myId = null; isHost = false; roomData = null;
+      resetLocal();
       showScreen("home");
       return;
     }
-    if (roomCode && myId && data.players && !data.players[myId]) {
-      localStorage.removeItem('hain_myId_' + roomCode);
-      roomCode = null; myId = null; isHost = false; roomData = null;
+    if (myId && data.players && !data.players[myId]) {
+      ls.del('hain_myId_' + code);
+      resetLocal();
       showScreen("home");
       alert("Odadan atıldın!");
       return;
     }
 
+    // Host düştüyse ya da çıktıysa en küçük id'li çevrimiçi oyuncu host olur
+    const hostP = data.players?.[data.host];
+    if (!hostP || hostP.online === false) {
+      const cands = Object.entries(data.players || {})
+        .filter(([, p]) => p.name && p.online !== false).map(([pid]) => pid).sort();
+      if (cands[0] === myId) update(ref(db, `rooms/${code}`), { host: myId });
+    }
+    isHost = data.host === myId;
+
     const prev = roomData;
     roomData = data;
     const state = data.gameState;
     if (!prev || prev.gameState !== state) {
-      if (state === "card_reveal") {
-        cardOpened = false;
-      }
-      if (state === "discussion") {
-        teamHidden = false;
-      }
+      if (state === "card_reveal") { cardOpened = false; crossed = {}; myVoted = false; voteTarget = null; }
+      if (state === "discussion") { teamHidden = false; crossed = {}; }
+      if (state === "voting") { myVoted = false; voteTarget = null; }   // her tur yeniden oy verilebilsin
+      if (state === "lobby") { starting = false; }
       showScreen(state);
-      renderScreen(state);
-    } else {
-      renderScreen(state);
     }
+    renderScreen(state);
   });
 }
 
@@ -415,15 +488,15 @@ function renderLobby() {
   if (isHost) {
     pc.innerHTML = players.map(p =>
       p.id === myId
-        ? `<span class="${p.ready?'chip-green':'chip'}">${p.name} (Kurucu)${p.ready?' ✓':''}</span>`
+        ? `<span class="${p.ready?'chip-green':'chip'}">${esc(p.name)} (Kurucu)${p.ready?' ✓':''}</span>`
         : `<div style="display:flex;align-items:center;gap:6px">
-            <span class="${p.ready?'chip-green':'chip'}">${p.name}${p.ready?' ✓':''}</span>
+            <span class="${p.ready?'chip-green':'chip'}">${esc(p.name)}${p.ready?' ✓':''}</span>
             <button onclick="kickPlayer('${p.id}')" style="background:#2a0d0d;color:#f87171;border:1px solid #f87171;border-radius:8px;padding:3px 8px;font-size:11px;cursor:pointer">At</button>
            </div>`
     ).join("");
   } else {
     pc.innerHTML = players.map(p =>
-      `<span class="${p.ready?'chip-green':'chip'}">${p.name}${p.id===roomData.host?' (Kurucu)':''}${p.ready?' ✓':''}</span>`
+      `<span class="${p.ready?'chip-green':'chip'}">${esc(p.name)}${p.id===roomData.host?' (Kurucu)':''}${p.ready?' ✓':''}</span>`
     ).join("");
   }
 
@@ -441,7 +514,7 @@ function renderLobby() {
 
   if (isHost) {
     show("destroy-btn"); hide("leave-btn");
-    if (allReady) {
+    if (allReady && roomData.gameState === "lobby") {
       startGame();
     }
   } else {
@@ -487,7 +560,7 @@ function renderReveal() {
   if (isHost) {
     if (!cardRevealInterval) {
       cardRevealInterval = setInterval(async () => {
-        if (!roomData || roomData.gameState !== "card_reveal") {
+        if (!isHost || !roomData || roomData.gameState !== "card_reveal") {
           clearInterval(cardRevealInterval);
           cardRevealInterval = null;
           return;
@@ -528,8 +601,10 @@ window.goToDiscussion = async function() {
 }
 
 window.startGame = async function() {
+  if (starting || !roomData || roomData.gameState !== "lobby") return;
   const players = getPlayers();
   if (players.length < 3) return;
+  starting = true;
 
   const teamPool = shuffle(TEAMS);
   const mainTeam = teamPool[0];
@@ -544,11 +619,11 @@ window.startGame = async function() {
     assignments[p.id] = { team: isHain ? hainTeam : mainTeam, isHain: isHain };
   });
 
-  await update(ref(db,`rooms/${roomCode}`), {
+  try { await update(ref(db,`rooms/${roomCode}`), {
     gameState:"card_reveal", assignments,
     eliminated:{}, votes:{}, roundResult:null, winner:null,
-    timer:300, timerActive:false, round:1, revealTimer:10, restartReady:null, overTimer:null
-  });
+    timer:300, timerActive:false, round:1, revealTimer:10, restartReady:null, overTimer:null, lastVotes:null
+  }); } finally { starting = false; }
 }
 
 function renderDiscussion() {
@@ -564,7 +639,7 @@ function renderDiscussion() {
 
   const active = getActivePlayers();
   document.getElementById("disc-players").innerHTML = active.map(p=>
-    `<span class="chip">${p.name}</span>`).join("");
+    `<span class="chip">${esc(p.name)}</span>`).join("");
 
   if (isHost && !timerActive) {
     show("disc-start-timer-btn"); hide("disc-timer-msg"); hide("disc-wait-host");
@@ -631,15 +706,16 @@ function renderVoting() {
   const active = getActivePlayers();
   const votes = roomData.votes || {};
   const vt = roomData.voteTimer ?? 15;
+  const iAmOut = !!roomData.eliminated?.[myId];   // elenenler oy veremez, izler
 
-  if (myVoted) {
+  if (myVoted || iAmOut) {
     hide("voting-form"); show("voting-done");
+    document.getElementById("vote-done-msg").textContent = iAmOut
+      ? "Elendin, oylamayı izliyorsun..."
+      : "Oy kullanıldı! Diğer oyuncular bekleniyor...";
     document.getElementById("vote-status").innerHTML = active.map(p=>
-      `<span class="${votes[p.id]?'chip-green':'chip'}">${p.name} ${votes[p.id]?'✓':'...'}</span>`
+      `<span class="${votes[p.id]?'chip-green':'chip'}">${esc(p.name)} ${votes[p.id]?'✓':'...'}</span>`
     ).join("");
-    if (isHost && active.every(p => votes[p.id])) {
-      tallyVotes(active, votes);
-    }
   } else {
     show("voting-form"); hide("voting-done");
 
@@ -652,32 +728,40 @@ function renderVoting() {
 
     const list = document.getElementById("vote-list");
     list.innerHTML = active.filter(p=>p.id!==myId).map(p=>
-      `<button class="btn-vote${voteTarget===p.id?' selected':''}" onclick="selectVote('${p.id}')">${p.name}</button>`
+      `<button class="btn-vote${voteTarget===p.id?' selected':''}" onclick="selectVote('${p.id}')">${esc(p.name)}</button>`
     ).join("");
     const btn = document.getElementById("vote-submit-btn");
     if (voteTarget) btn.classList.remove("btn-disabled");
     else btn.classList.add("btn-disabled");
+  }
 
-    if (vt > 0) {
-      voteTimerInterval = setInterval(() => {
-        const newT = (roomData.voteTimer ?? 1) - 1;
-        const el = document.getElementById("vote-timer");
-        if (el) {
-          el.textContent = newT;
-          const c = newT > 8 ? "#4ade80" : newT > 4 ? "#fbbf24" : "#f87171";
-          el.style.color = c; el.style.borderColor = c;
-        }
-        if (isHost) update(ref(db,`rooms/${roomCode}`), { voteTimer: newT });
-        if (newT <= 0) {
-          clearInterval(voteTimerInterval);
-          if (!myVoted) {
-            myVoted = true;
-            update(ref(db,`rooms/${roomCode}/votes`), { [myId]: "none" });
-            renderVoting();
-          }
-        }
-      }, 1000);
-    }
+  // Süre bitti ve oy vermedim: boş oy
+  if (!myVoted && !iAmOut && vt <= 0) {
+    myVoted = true;
+    update(ref(db,`rooms/${roomCode}/votes`), { [myId]: "none" });
+    renderVoting();
+    return;
+  }
+
+  // Host (oy verse de, elense de) herkes oy verince ya da süre bitince sayar
+  if (isHost && (vt <= 0 || active.every(p => votes[p.id]))) {
+    tallyVotes(active, votes);
+    return;
+  }
+
+  // Sayaç: host oy verse bile sayaç durmaz
+  if (vt > 0) {
+    voteTimerInterval = setInterval(() => {
+      const newT = (roomData.voteTimer ?? 1) - 1;
+      const el = document.getElementById("vote-timer");
+      if (el && !myVoted && !iAmOut) {
+        el.textContent = newT;
+        const c = newT > 8 ? "#4ade80" : newT > 4 ? "#fbbf24" : "#f87171";
+        el.style.color = c; el.style.borderColor = c;
+      }
+      if (isHost) update(ref(db,`rooms/${roomCode}`), { voteTimer: newT });
+      if (newT <= 0) clearInterval(voteTimerInterval);
+    }, 1000);
   }
 }
 
@@ -694,23 +778,34 @@ window.submitVote = async function() {
 }
 
 async function tallyVotes(active, votes) {
-  const tally = {};
-  active.forEach(p => { tally[p.id] = 0; });
-  Object.values(votes).forEach(tid => { if (tid !== "none" && tally[tid]!==undefined) tally[tid]++; });
-  const maxV = Math.max(...Object.values(tally));
-  const top = Object.keys(tally).filter(id => tally[id]===maxV);
-  const elimId = top[Math.floor(Math.random()*top.length)];
-  const isHainElim = roomData.assignments[elimId]?.isHain;
-  const newElim = { ...(roomData.eliminated||{}), [elimId]:true };
-  const remaining = active.filter(p => !newElim[p.id]);
-  const hainIn = remaining.some(p => roomData.assignments[p.id]?.isHain);
-  let nextState = "result", winner = null;
-  if (!hainIn) { nextState="game_over"; winner="GRUP"; }
-  else if (remaining.length <= 2) { nextState="game_over"; winner="HAİN"; }
-  await update(ref(db,`rooms/${roomCode}`), {
-    eliminated:newElim, roundResult:{eliminatedId:elimId, isHain:isHainElim},
-    gameState:nextState, winner, round:(roomData.round||1)+1, votes:{}, lastVotes:votes
-  });
+  if (tallying) return;
+  tallying = true;
+  try {
+    // Sadece hâlâ oyunda olanların oyları sayılır
+    const activeIds = new Set(active.map(p => p.id));
+    const cleanVotes = {};
+    Object.entries(votes).forEach(([voter, tid]) => { if (activeIds.has(voter)) cleanVotes[voter] = tid; });
+
+    const tally = {};
+    active.forEach(p => { tally[p.id] = 0; });
+    Object.values(cleanVotes).forEach(tid => { if (tid !== "none" && tally[tid]!==undefined) tally[tid]++; });
+    const maxV = Math.max(...Object.values(tally));
+    const top = Object.keys(tally).filter(id => tally[id]===maxV);
+    const elimId = top[Math.floor(Math.random()*top.length)];
+    const isHainElim = roomData.assignments[elimId]?.isHain;
+    const newElim = { ...(roomData.eliminated||{}), [elimId]:true };
+    const remaining = active.filter(p => !newElim[p.id]);
+    const hainIn = remaining.some(p => roomData.assignments[p.id]?.isHain);
+    let nextState = "result", winner = null;
+    if (!hainIn) { nextState="game_over"; winner="GRUP"; }
+    else if (remaining.length <= 2) { nextState="game_over"; winner="HAİN"; }
+    await update(ref(db,`rooms/${roomCode}`), {
+      eliminated:newElim, roundResult:{eliminatedId:elimId, isHain:isHainElim},
+      gameState:nextState, winner, round:(roomData.round||1)+1, votes:{}, lastVotes:cleanVotes
+    });
+  } finally {
+    tallying = false;
+  }
 }
 
 function renderResult() {
@@ -735,11 +830,11 @@ function renderResult() {
   voteList.innerHTML = players.map(p => {
     const votedForId = votes[p.id];
     const votedForName = votedForId === "none" ? "Boş oy" : (roomData.players?.[votedForId]?.name || "—");
-    return `<p style="font-size:12px;color:#777">${p.name} → <span style="color:#fff">${votedForName}</span></p>`;
+    return `<p style="font-size:12px;color:#777">${esc(p.name)} → <span style="color:#fff">${esc(votedForName)}</span></p>`;
   }).join("");
 
   document.getElementById("result-players").innerHTML = getActivePlayers().map(p=>
-    `<span class="chip">${p.name}</span>`).join("");
+    `<span class="chip">${esc(p.name)}</span>`).join("");
   if (isHost) { show("result-cont-btn"); hide("result-wait"); }
   else { hide("result-cont-btn"); show("result-wait"); }
 }
@@ -775,9 +870,9 @@ function renderGameOver() {
 
   document.getElementById("over-stats-list").innerHTML = `
     <p style="font-size:12px;color:#777">Toplam Tur: <span style="color:#fff">${totalRounds}</span></p>
-    <p style="font-size:12px;color:#777">En Çok Oy Alan: <span style="color:#fbbf24">${mostVoted?.name || "?"} (${voteCount[mostVoted?.id]||0} oy)</span></p>
-    ${noVotes.length ? `<p style="font-size:12px;color:#777">Hiç Oy Almayan: <span style="color:#4ade80">${noVotes.map(p=>p.name).join(", ")}</span></p>` : ""}
-    <p style="font-size:12px;color:#777">Hain: <span style="color:#f87171">${roomData.players?.[hainId]?.name || "?"}</span></p>
+    <p style="font-size:12px;color:#777">En Çok Oy Alan: <span style="color:#fbbf24">${esc(mostVoted?.name || "?")} (${voteCount[mostVoted?.id]||0} oy)</span></p>
+    ${noVotes.length ? `<p style="font-size:12px;color:#777">Hiç Oy Almayan: <span style="color:#4ade80">${noVotes.map(p=>esc(p.name)).join(", ")}</span></p>` : ""}
+    <p style="font-size:12px;color:#777">Hain: <span style="color:#f87171">${esc(roomData.players?.[hainId]?.name || "?")}</span></p>
   `;
 
   show("over-restart-btn");
@@ -788,7 +883,7 @@ function renderGameOver() {
   document.getElementById("over-ready-count").textContent = readyCount;
   document.getElementById("over-total-count").textContent = players.length;
   document.getElementById("over-ready-list").innerHTML = players.map(p =>
-    `<span class="${restartReady[p.id]?'chip-green':'chip'}">${p.name} ${restartReady[p.id]?'✓':'...'}</span>`
+    `<span class="${restartReady[p.id]?'chip-green':'chip'}">${esc(p.name)} ${restartReady[p.id]?'✓':'...'}</span>`
   ).join("");
 
   const restartBtn = document.getElementById("over-restart-btn");
@@ -847,12 +942,12 @@ window.resetGame = async function() {
   myVoted=false; voteTarget=null; crossed={};
   const players = getPlayers();
   const resetPlayers = {};
-  players.forEach(p => { resetPlayers[p.id] = { name: p.name, ready: false }; });
+  players.forEach(p => { resetPlayers[p.id] = { name: p.name, ready: false, online: p.online !== false }; });
   await update(ref(db,`rooms/${roomCode}`), { gameState:"lobby", assignments:null, eliminated:{}, votes:{}, roundResult:null, winner:null, lastVotes:null, restartReady:null, overTimer:null, players: resetPlayers });
 }
 
 function getPlayers() {
-  return Object.entries(roomData?.players||{}).map(([id,p])=>({id,...p}));
+  return Object.entries(roomData?.players||{}).map(([id,p])=>({id,...p})).filter(p=>p.name);
 }
 function getActivePlayers() {
   return getPlayers().filter(p => !roomData?.eliminated?.[p.id]);
